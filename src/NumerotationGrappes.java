@@ -1,5 +1,3 @@
-Cet algorithme me semble mieux adapté à mon besoin, que pense tu ?
-
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.FileReader;
