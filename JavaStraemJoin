@@ -1,0 +1,34 @@
+List<String> table1 = Arrays.asList("0000000000abcdefghijk", "1111111111lmnopqrstuv");
+List<String> table2 = Arrays.asList("2222222222abcdef", "3333333333ghijklmno", "4444444444pqrstuvwx");
+List<String> table3 = Arrays.asList("5555555555abcdefghijklmno", "6666666666pqrstuv");
+
+Map<String, List<String>> table2Map = table2.stream()
+    .collect(Collectors.groupingBy(s -> s.substring(8)));
+
+Map<String, List<String>> table3Map = table3.stream()
+    .collect(Collectors.groupingBy(s -> s.substring(10)));
+
+Map<String, List<String>> result = table1.stream()
+    .flatMap(s1 -> {
+        String key = s1.substring(10);
+        if (table2Map.containsKey(key) && table3Map.containsKey(key)) {
+            List<String> table2Values = table2Map.get(key);
+            List<String> table3Values = table3Map.get(key);
+            return table2Values.stream()
+                .flatMap(s2 -> table3Values.stream()
+                    .map(s3 -> {
+                        Map<String, List<String>> map = new HashMap<>();
+                        map.put(s1, Arrays.asList(s2, s3));
+                        return map;
+                    })
+                );
+        } else {
+            return Stream.empty();
+        }
+    })
+    .collect(Collectors.toMap(
+        m -> m.keySet().iterator().next(),
+        m -> m.values().iterator().next(),
+        (v1, v2) -> v1,
+        LinkedHashMap::new
+    ));
