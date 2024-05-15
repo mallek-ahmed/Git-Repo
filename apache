@@ -3,3 +3,11 @@
     AllowOverride All
     Require all granted
 </Directory>
+
+
+
+.htaccess
+RewriteEngine On
+RewriteCond %{REQUEST_URI} ^/mon-contexte-1/ [NC]
+RewriteRule ^mon-contexte-1/(.*)$ /mon-contexte-2/$1 [L,R=301]
+
