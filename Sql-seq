@@ -1,0 +1,45 @@
+Pour créer un script PL/SQL dans Oracle qui ajuste une séquence à un certain numéro \( n \), vous devrez probablement réinitialiser la séquence pour qu'elle commence à ce nouveau numéro. Voici un exemple de script qui fait cela. Le script réinitialise la séquence pour qu'elle commence à \( n + 1 \), car chaque prochain appel à la séquence renverra \( n + 1 \).
+
+1. **Définir la séquence existante** (s'il n'y en a pas déjà une, vous pouvez en créer une):
+   ```sql
+   CREATE SEQUENCE ma_sequence
+     START WITH 1
+     INCREMENT BY 1
+     NOCACHE;
+   ```
+
+2. **Créer un script PL/SQL pour réinitialiser la séquence**:
+   ```sql
+   DECLARE
+     n NUMBER := 100; -- Mettez ici la valeur désirée de n
+     val_courante NUMBER;
+     inc_val NUMBER;
+   BEGIN
+     -- Sélectionner la valeur actuelle de la séquence
+     SELECT ma_sequence.NEXTVAL INTO val_courante FROM dual;
+
+     -- Calculer l'incrément nécessaire pour atteindre n
+     inc_val := n - val_courante;
+
+     -- Incrémenter la séquence par la différence calculée
+     IF inc_val > 0 THEN
+       -- Si inc_val est positif, on utilise une autre séquence pour incrémenter
+       EXECUTE IMMEDIATE 'CREATE SEQUENCE temp_sequence START WITH ' || val_courante || ' INCREMENT BY ' || inc_val || ' NOCACHE';
+       SELECT temp_sequence.NEXTVAL INTO val_courante FROM dual;
+       EXECUTE IMMEDIATE 'DROP SEQUENCE temp_sequence';
+     END IF;
+
+     -- Réinitialiser la séquence principale
+     EXECUTE IMMEDIATE 'DROP SEQUENCE ma_sequence';
+     EXECUTE IMMEDIATE 'CREATE SEQUENCE ma_sequence START WITH ' || (n + 1) || ' INCREMENT BY 1 NOCACHE';
+   END;
+   ```
+
+Ce script PL/SQL effectue les opérations suivantes :
+
+- Récupère la valeur courante de la séquence.
+- Calcule la différence entre la valeur courante et le nombre \( n \) souhaité.
+- Utilise une séquence temporaire pour effectuer un grand saut à la valeur désirée si nécessaire.
+- Réinitialise la séquence principale pour démarrer au nombre \( n + 1 \).
+
+Assurez-vous d'ajuster la valeur de \( n \) dans le script selon vos besoins. Ce script peut être adapté si vous avez d'autres exigences ou si la configuration de votre environnement Oracle est différente.
