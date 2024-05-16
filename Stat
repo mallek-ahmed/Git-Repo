@@ -1,0 +1,12 @@
+BEGIN
+  -- Collecter des statistiques pour toutes les tables du schéma 'MON_SCHEMA'
+  DBMS_STATS.GATHER_SCHEMA_STATS (
+    ownname          => 'MON_SCHEMA',
+    options          => 'GATHER', 
+    estimate_percent => DBMS_STATS.AUTO_SAMPLE_SIZE,
+    method_opt       => 'FOR ALL COLUMNS SIZE AUTO',
+    cascade          => TRUE,
+    degree           => NULL
+  );
+END;
+/
