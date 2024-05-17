@@ -1,0 +1,59 @@
+Pour recalculer les statistiques des index dans Oracle 19c afin d'optimiser les requêtes sur les tables, vous pouvez utiliser le package `DBMS_STATS`. Ce package fournit une série de procédures pour collecter, gérer et modifier les statistiques nécessaires à l'optimiseur de requêtes d'Oracle.
+
+Voici comment vous pouvez recalculer les statistiques pour tous les index d'une table spécifique, ce qui peut aider l'optimiseur à mieux comprendre la distribution des données et à choisir le plan d'exécution le plus efficace pour les requêtes :
+
+### 1. Recalculer les statistiques pour tous les index d'une table
+
+```sql
+BEGIN
+  DBMS_STATS.GATHER_INDEX_STATS(
+    ownname          => 'NOM_SCHEMA',  -- Remplacez par le nom du schéma
+    indname          => 'NOM_INDEX',   -- Remplacez par le nom de l'index
+    estimate_percent => NULL,          -- Laissez Oracle déterminer le pourcentage d'échantillonnage
+    method_opt       => 'FOR ALL INDEXED COLUMNS SIZE AUTO'
+  );
+END;
+/
+```
+
+### 2. Recalculer les statistiques pour tous les index de toutes les tables d'un schéma
+
+Si vous souhaitez recalculer les statistiques pour tous les index de toutes les tables dans un schéma, vous pouvez utiliser la procédure `GATHER_SCHEMA_STATS` :
+
+```sql
+BEGIN
+  DBMS_STATS.GATHER_SCHEMA_STATS(
+    ownname          => 'NOM_SCHEMA',  -- Remplacez par le nom du schéma
+    options          => 'GATHER AUTO', 
+    estimate_percent => DBMS_STATS.AUTO_SAMPLE_SIZE,
+    method_opt       => 'FOR ALL INDEXED COLUMNS SIZE AUTO',
+    cascade          => TRUE           -- Spécifiez TRUE pour inclure les index
+  );
+END;
+/
+```
+
+### 3. Planification automatique de la collecte des statistiques
+
+Oracle recommande la collecte automatique des statistiques. Assurez-vous que la tâche de collecte automatique des statistiques est activée :
+
+```sql
+SELECT * FROM DBA_AUTOTASK_CLIENT;
+```
+
+Si nécessaire, activez la tâche :
+
+```sql
+BEGIN
+  DBMS_AUTO_TASK_ADMIN.ENABLE(
+    client_name => 'auto optimizer stats collection',
+    operation   => NULL,
+    window_name => NULL
+  );
+END;
+/
+```
+
+En activant la collecte automatique, Oracle décidera de la meilleure façon de collecter les statistiques basée sur le volume de changements et la distribution des données.
+
+Ces approches devraient aider à améliorer la performance des requêtes en fournissant à l'optimiseur des informations à jour sur la distribution des données dans vos index.
