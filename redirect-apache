@@ -1,3 +1,38 @@
+<VirtualHost *:8080>
+    ServerName localhost
+    DocumentRoot /path/to/document/root
+
+    # Assurez-vous que le module de réécriture est activé
+    RewriteEngine On
+
+    # Redirection avec réécriture des paramètres
+    RewriteCond %{QUERY_STRING} ^returnUrl=toto&PtN=guaranteesArea&ActN=StartExternalCvrSurTransactionAction&TXN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=SOC01$
+    RewriteRule ^/guarantees-web/portal$ /sopra-banking-collateral-web/portal?FMK_PtN=guaranteesArea&FMK_ActN=StartExternalCvrSurTransactionAction&FMK_TxN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=005 [R=301,L]
+
+    # Autres configurations pour ce VirtualHost
+    # ...
+</VirtualHost>
+
+
+
+<VirtualHost *:8080>
+    ServerName localhost
+    DocumentRoot /path/to/document/root
+
+    # Assurez-vous que le module de réécriture est activé
+    RewriteEngine On
+
+    # Redirection avec réécriture des paramètres
+    RewriteCond %{QUERY_STRING} ^returnUrl=toto&PtN=guaranteesArea&ActN=StartExternalCvrSurTransactionAction&TXN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=SOC01$
+    RewriteRule ^/guarantees-web/portal$ /sopra-banking-collateral-web/portal?FMK_PtN=guaranteesArea&FMK_ActN=StartExternalCvrSurTransactionAction&FMK_TxN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=005 [R=301,L]
+
+    # Autres configurations pour ce VirtualHost
+    # ...
+</VirtualHost>
+
+
+
+
 <VirtualHost *:port>
     ServerName host-name
     DocumentRoot /path/to/document/root
