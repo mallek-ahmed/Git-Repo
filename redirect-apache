@@ -1,0 +1,14 @@
+<VirtualHost *:port>
+    ServerName host-name
+    DocumentRoot /path/to/document/root
+
+    # Assurez-vous que le module de réécriture est activé
+    RewriteEngine On
+
+    # Règle de réécriture
+    RewriteCond %{REQUEST_URI} ^/mon-contexte-1$
+    RewriteRule ^/mon-contexte-1$ /mon-contexte-2 [R=301,L]
+
+    # Autres configurations pour ce VirtualHost
+    # ...
+</VirtualHost>
