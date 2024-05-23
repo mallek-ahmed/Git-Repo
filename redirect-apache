@@ -13,16 +13,17 @@
     RewriteCond %{REQUEST_URI} ^/mon-contexte-1/$
     RewriteRule ^/mon-contexte-1/$ /mon-contexte-2/ [R=301,L]
 
-    # Réécriture des paramètres de requête indépendamment de l'ordre
-    RewriteCond %{QUERY_STRING} ^(.*&)?MyParm1=([^&]*)&?(.*)$
-    RewriteCond %{QUERY_STRING} ^(.*&)?MyParm2=([^&]*)&?(.*)$
-    RewriteCond %{QUERY_STRING} ^(.*&)?MyParm3=([^&]*)&?(.*)$
+    # Réécriture des paramètres de requête
     RewriteCond %{QUERY_STRING} ^(.*)$
-    RewriteRule ^/mon-contexte-1/portal$ /mon-contexte-2/portal?%1MonParm1=%2&%1MonParm2=%2&%1MonParm3=%2& [R=301,L]
+    RewriteCond %{QUERY_STRING} (?:^|&)MyParm1=([^&]+) [NC]
+    RewriteCond %{QUERY_STRING} (?:^|&)MyParm2=([^&]+) [NC]
+    RewriteCond %{QUERY_STRING} (?:^|&)MyParm3=([^&]+) [NC]
+    RewriteRule ^/mon-contexte-1/portal$ /mon-contexte-2/portal?monParamNeChangePas=%{QUERY_STRING}&MonParm1=%1&MonParm2=%2&MonParm3=%3 [R=301,L]
 
     # Autres configurations pour ce VirtualHost
     # ...
 </VirtualHost>
+
 
 
 
