@@ -1,30 +1,21 @@
-<VirtualHost *:8080>
-    ServerName localhost
+<VirtualHost *:port>
+    ServerName host-name
     DocumentRoot /path/to/document/root
 
     # Assurez-vous que le module de réécriture est activé
     RewriteEngine On
 
-    # Redirection avec réécriture des paramètres
-    RewriteCond %{QUERY_STRING} ^returnUrl=toto&PtN=guaranteesArea&ActN=StartExternalCvrSurTransactionAction&TXN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=SOC01$
-    RewriteRule ^/guarantees-web/portal$ /sopra-banking-collateral-web/portal?FMK_PtN=guaranteesArea&FMK_ActN=StartExternalCvrSurTransactionAction&FMK_TxN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=005 [R=301,L]
+    # Redirection de /mon-contexte-1/sas/public/login.jsp vers /mon-contexte-2/
+    RewriteCond %{REQUEST_URI} ^/mon-contexte-1/sas/public/login.jsp$
+    RewriteRule ^/mon-contexte-1/sas/public/login.jsp$ /mon-contexte-2/ [R=301,L]
 
-    # Autres configurations pour ce VirtualHost
-    # ...
-</VirtualHost>
+    # Redirection de /mon-contexte-1/ vers /mon-contexte-2/
+    RewriteCond %{REQUEST_URI} ^/mon-contexte-1/$
+    RewriteRule ^/mon-contexte-1/$ /mon-contexte-2/ [R=301,L]
 
-
-
-<VirtualHost *:8080>
-    ServerName localhost
-    DocumentRoot /path/to/document/root
-
-    # Assurez-vous que le module de réécriture est activé
-    RewriteEngine On
-
-    # Redirection avec réécriture des paramètres
-    RewriteCond %{QUERY_STRING} ^returnUrl=toto&PtN=guaranteesArea&ActN=StartExternalCvrSurTransactionAction&TXN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=SOC01$
-    RewriteRule ^/guarantees-web/portal$ /sopra-banking-collateral-web/portal?FMK_PtN=guaranteesArea&FMK_ActN=StartExternalCvrSurTransactionAction&FMK_TxN=ExternalCvrSurTransaction.xml&cdAppExt=Loans&idcvr=1&cdfil=Loans&idcvrori=2&cdfilori=Loans&cdsoc=005 [R=301,L]
+    # Réécriture des paramètres de requête
+    RewriteCond %{QUERY_STRING} (.*)MyParm1=([^&]*)&MyParm2=([^&]*)&MyParm3=([^&]*)&?(.*)$
+    RewriteRule ^/mon-contexte-1/portal$ /mon-contexte-2/portal?%1MonParm1=%2&MonParm2=%3&MonParm3=%4&%5 [R=301,L]
 
     # Autres configurations pour ce VirtualHost
     # ...
