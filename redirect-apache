@@ -5,9 +5,13 @@
     # Assurez-vous que le module de réécriture est activé
     RewriteEngine On
 
-    # Règles de réécriture
-    RewriteCond %{REQUEST_URI} ^/mon-contexte-1(/.*)?$
-    RewriteRule ^/mon-contexte-1(/.*)?$ /mon-contexte-2$1 [R=301,L]
+    # Redirection de /mon-contexte-1/sas/public/login.jsp vers /mon-contexte-2/
+    RewriteCond %{REQUEST_URI} ^/mon-contexte-1/sas/public/login.jsp$
+    RewriteRule ^/mon-contexte-1/sas/public/login.jsp$ /mon-contexte-2/ [R=301,L]
+
+    # Redirection de /mon-contexte-1/ vers /mon-contexte-2/
+    RewriteCond %{REQUEST_URI} ^/mon-contexte-1/$
+    RewriteRule ^/mon-contexte-1/$ /mon-contexte-2/ [R=301,L]
 
     # Autres configurations pour ce VirtualHost
     # ...
