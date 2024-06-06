@@ -1,0 +1,14 @@
+-- Remplacez 'my_sequence' par le nom de votre séquence
+-- Obtenez la valeur actuelle de la séquence
+SELECT my_sequence.NEXTVAL
+FROM dual;
+
+-- Ajustez temporairement le prochain numéro de la séquence
+ALTER SEQUENCE my_sequence INCREMENT BY -<current_value - 1>;
+
+-- Obtenez le prochain numéro pour mettre à jour la séquence
+SELECT my_sequence.NEXTVAL
+FROM dual;
+
+-- Remettez l'incrément à sa valeur initiale
+ALTER SEQUENCE my_sequence INCREMENT BY 1;
