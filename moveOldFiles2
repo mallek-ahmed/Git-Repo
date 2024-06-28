@@ -47,3 +47,19 @@ echo "Moving files and directories older than $N_DAYS days from $SOURCE_DIR to $
 move_old_files "$SOURCE_DIR" "$DEST_DIR" "$N_DAYS"
 
 echo "Operation completed."
+
+
+
+
+#!/bin/bash
+
+# Get the current date in yyyy-mm-dd format
+current_date=$(date +'%Y-%m-%d')
+
+# Directory name with current date
+dir_name="backup-$current_date"
+
+# Create the directory
+mkdir -p "$dir_name"
+
+echo "Directory $dir_name created."
