@@ -1,0 +1,48 @@
+#!/bin/bash
+
+# Usage: ./script.sh <source_directory> <destination_directory> <N_days> <M_days> <x_percent>
+# Example: ./script.sh /path/to/source /path/to/destination 30 60 80
+
+SOURCE_DIR="$1"
+DEST_DIR="$2"
+N_DAYS="$3"
+M_DAYS="$4"
+X_PERCENT="$5"
+
+# Function to check the percentage of disk usage of a directory
+check_disk_usage() {
+    local dir="$1"
+    local usage=$(df -h "$dir" | awk 'NR==2 {print $5}' | sed 's/%//')
+    echo "$usage"
+}
+
+# Function to delete files older than M days in a directory
+delete_old_files() {
+    local dir="$1"
+    local days="$2"
+    find "$dir" -type f -mtime +"$days" -exec rm -f {} \;
+    find "$dir" -type d -empty -delete
+}
+
+# Function to move files older than N days from source to destination
+move_old_files() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local days="$3"
+    find "$src_dir" -type f -mtime +"$days" -exec mv {} "$dest_dir" \;
+    find "$src_dir" -type d -empty -delete
+}
+
+# Check if destination directory is at or above the specified disk usage percentage
+current_usage=$(check_disk_usage "$DEST_DIR")
+
+if [ "$current_usage" -ge "$X_PERCENT" ]; then
+    echo "Destination directory is at or above $X_PERCENT% usage. Deleting old files..."
+    delete_old_files "$DEST_DIR" "$M_DAYS"
+fi
+
+# Move files older than N days from source to destination
+echo "Moving files older than $N_DAYS days from $SOURCE_DIR to $DEST_DIR..."
+move_old_files "$SOURCE_DIR" "$DEST_DIR" "$N_DAYS"
+
+echo "Operation completed."
