@@ -63,3 +63,16 @@ dir_name="backup-$current_date"
 mkdir -p "$dir_name"
 
 echo "Directory $dir_name created."
+
+
+
+
+move_old_files() {
+    local src_dir="$1"
+    local dest_dir="$2"
+    local days="$3"
+    # Find directories and files older than specified days and move them
+    find "$src_dir" -mindepth 1 -mtime +"$days" -exec mv -t "$dest_dir" {} +
+    # Clean up empty directories left behind
+    find "$src_dir" -type d -empty -delete
+}
