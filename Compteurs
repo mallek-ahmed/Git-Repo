@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Déclaration d'un tableau associatif pour les compteurs
+declare -A compteurs=( ["OK"]=0 ["KO"]=0 ["ALL"]=0 )
+
+# Fonction pour incrémenter un compteur
+incrementer_compteur() {
+  local nom_compteur=$1
+  if [[ -z "${compteurs[$nom_compteur]}" ]]; then
+    compteurs[$nom_compteur]=0
+  fi
+  compteurs[$nom_compteur]=$((compteurs[$nom_compteur] + 1))
+  if [[ $nom_compteur == "OK" || $nom_compteur == "KO" ]]; then
+    compteurs["ALL"]=$((compteurs["ALL"] + 1))
+  fi
+}
+
+# Fonction pour afficher un compteur
+afficher_compteur() {
+  local nom_compteur=$1
+  echo "Valeur actuelle du compteur '$nom_compteur' : ${compteurs[$nom_compteur]}"
+}
+
+# Fonction pour calculer et afficher les ratios
+calculer_ratios() {
+  local ok=${compteurs["OK"]}
+  local ko=${compteurs["KO"]}
+  local all=${compteurs["ALL"]}
+
+  if (( all > 0 )); then
+    local ratio_ok=$(echo "scale=2; $ok / $all" | bc)
+    local ratio_ko=$(echo "scale=2; $ko / $all" | bc)
+    echo "Ratio OK/ALL : $ratio_ok"
+    echo "Ratio KO/ALL : $ratio_ko"
+  else
+    echo "Impossible de calculer les ratios : compteur ALL est 0"
+  fi
+}
+
+# Exemple d'utilisation
+incrementer_compteur "OK"
+incrementer_compteur "KO"
+incrementer_compteur "OK"
+incrementer_compteur "OK"
+incrementer_compteur "KO"
+
+afficher_compteur "OK"
+afficher_compteur "KO"
+afficher_compteur "ALL"
+
+calculer_ratios
