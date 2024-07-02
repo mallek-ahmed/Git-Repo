@@ -14,3 +14,31 @@ subject="Rapport d'analyse du fichier"
 message="Ceci est le contenu de votre message.\nLigne 1\nLigne 2\nLigne 3"
 
 send_mail "$recipient" "$subject" "$message"
+
+
+
+
+
+#!/bin/ksh
+
+send_mail() {
+    local recipient="$1"
+    local subject="$2"
+    local message="$3"
+
+    # Créer le contenu de l'email avec les en-têtes appropriés
+    {
+        echo "To: $recipient"
+        echo "Subject: $subject"
+        echo "Content-Type: text/plain; charset=UTF-8"
+        echo
+        echo "$message"
+    } | sendmail -t
+}
+
+# Exemple d'utilisation de la fonction
+recipient="destinataire@example.com"
+subject="Rapport d'analyse du fichier"
+message="Ceci est le contenu de votre message.\nLigne 1\nLigne 2\nLigne 3"
+
+send_mail "$recipient" "$subject" "$message"
