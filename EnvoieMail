@@ -1,0 +1,16 @@
+#!/bin/ksh
+
+send_mail() {
+    local recipient="$1"
+    local subject="$2"
+    local message="$3"
+
+    echo "$message" | mailx -s "$subject" "$recipient"
+}
+
+# Exemple d'utilisation de la fonction
+recipient="destinataire@example.com"
+subject="Rapport d'analyse du fichier"
+message="Ceci est le contenu de votre message.\nLigne 1\nLigne 2\nLigne 3"
+
+send_mail "$recipient" "$subject" "$message"
