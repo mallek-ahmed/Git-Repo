@@ -38,3 +38,69 @@ analyze_file() {
 
 # Appel de la fonction avec le chemin du fichier en argument
 analyze_file "path/to/your/file"
+
+
+
+
+
+#!/bin/ksh
+
+send_mail() {
+    local recipient="$1"
+    local subject="$2"
+    local message="$3"
+
+    # Créer le contenu de l'email avec les en-têtes appropriés
+    {
+        echo "To: $recipient"
+        echo "Subject: $subject"
+        echo "Content-Type: text/plain; charset=UTF-8"
+        echo
+        echo "$message"
+    } | sendmail -t
+}
+
+analyze_and_send_mail() {
+    local file="$1"
+    local recipient="$2"
+    local total_lines=0
+    local ok_count=0
+    local ko_count=0
+
+    # Lire le fichier ligne par ligne
+    while IFS= read -r line; do
+        # Incrémenter le compteur total de lignes
+        total_lines=$((total_lines + 1))
+
+        # Vérifier si la ligne contient une réponse OK ou KO
+        if echo "$line" | grep -q '"idContrat"'; then
+            ok_count=$((ok_count + 1))
+        elif echo "$line" | grep -q '"code"'; then
+            ko_count=$((ko_count + 1))
+        fi
+    done < "$file"
+
+    # Calculer les ratios
+    if [ $total_lines -gt 0 ]; then
+        ok_ratio=$(echo "scale=2; $ok_count / $total_lines * 100" | bc)
+        ko_ratio=$(echo "scale=2; $ko_count / $total_lines * 100" | bc)
+    else
+        ok_ratio=0
+        ko_ratio=0
+    fi
+
+    # Créer le contenu du mail
+    local mail_content="Total des lignes: $total_lines\n"
+    mail_content+="Nombre de réponses OK: $ok_count\n"
+    mail_content+="Nombre de réponses KO: $ko_count\n"
+    mail_content+="Ratio OK: $ok_ratio%\n"
+    mail_content+="Ratio KO: $ko_ratio%\n"
+
+    # Envoyer le mail
+    send_mail "$recipient" "Rapport d'analyse du fichier" "$mail_content"
+}
+
+# Exemple d'utilisation de la fonction
+analyze_and_send_mail "path/to/your/file" "destinataire@example.com"
+
+
