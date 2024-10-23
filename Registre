@@ -32,3 +32,22 @@ Windows Registry Editor Version 5.00
 
 [HKEY_CURRENT_USER\Software\Classes\*\shell\VSCode\command]
 @="\"C:\\Program Files\\Microsoft VS Code\\Code.exe\" \"%1\""
+
+
+
+
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\IntelliJ]
+@="Open with IntelliJ IDEA"
+"Icon"="\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2023.2\\bin\\idea64.exe\",0"
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\IntelliJ\command]
+@="\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2023.2\\bin\\idea64.exe\" \"%V\""
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\IntelliJ]
+@="Open with IntelliJ IDEA"
+"Icon"="\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2023.2\\bin\\idea64.exe\",0"
+
+[HKEY_CURRENT_USER\Software\Classes\*\shell\IntelliJ\command]
+@="\"C:\\Program Files\\JetBrains\\IntelliJ IDEA 2023.2\\bin\\idea64.exe\" \"%1\""
