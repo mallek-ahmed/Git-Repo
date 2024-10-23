@@ -1,0 +1,30 @@
+Bonjour à toutes et à tous,
+
+Aujourd'hui, je vais vous présenter notre retour d'expérience sur l'évolution de la solution XXXXX de la version VN à la version VN+1, dans le cadre du projet Nom du projet. Cette présentation vise à illustrer les tests fonctionnels et l'assistance que nous avons fournie pour les tests utilisateurs (UAT).
+
+1. Contexte et portée du projet
+Notre intervention a couvert l'analyse métier, les tests fonctionnels et l'assistance aux utilisateurs finaux pour garantir une transition réussie vers la nouvelle version de KSIoP.
+
+2. Périmètre des tests
+Nous avons mis en œuvre une stratégie de test complète, qui inclut quatre types de tests clés :
+
+Les tests fonctionnels, pour vérifier les fonctionnalités de l'application.
+Les tests applicatifs, pour évaluer la performance et la fiabilité des applications impliquées.
+Les tests d'acceptation, afin de valider la conformité avec les attentes des utilisateurs finaux.
+Les tests de non-régression, pour s'assurer que les fonctionnalités déjà présentes restent intactes après la mise à jour.
+3. Objectifs clés du projet
+Nous nous sommes concentrés sur quatre objectifs principaux :
+
+L’intégration des nouvelles fonctionnalités tout en préservant les existantes.
+La mise à jour des quatre domaines essentiels : Back office, comptabilité, publication, et interfaces...
+La livraison de cette mise à jour sans dépasser les délais prévus.
+La résolution des problèmes liés à l'obsolescence.
+4. Nos convictions
+Nous avons défini une stratégie de test précise dédiée à cette mise à jour, fondée sur des cas de test validés par les utilisateurs finaux. Notre campagne de tests s'est déroulée dans des environnements variés pour comparer les résultats obtenus avec les versions antérieures.
+
+5. Facteurs de succès clés
+Pour réussir cette transition, nous avons établi un référentiel de tests spécifiques à nom du projet et XXXXX. Nous avons également mis en place une matrice de correspondance des fonctionnalités entre les différentes versions, et utilisé des outils et scripts pour automatiser les tests. De plus, l'expertise de nos consultants a joué un rôle clé dans la gestion des écarts et l'analyse des potentielles régressions.
+
+En conclusion, grâce à une équipe de plus de quatre experts et consultants, nous avons pu garantir une migration efficace, sécurisée et en accord avec les exigences du projet.
+
+Je vous remercie pour votre attention, et suis prêt à répondre à vos questions.
