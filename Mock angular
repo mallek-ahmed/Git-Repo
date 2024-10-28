@@ -1,3 +1,57 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MonComposant } from './mon-composant.component'; // Chemin vers votre composant
+
+// Création d'un service de localisation temporaire pour le test
+class MockLocationService {
+  href: string = 'http://default-url.com';
+
+  getHref(): string {
+    return this.href;
+  }
+
+  setHref(url: string): void {
+    this.href = url;
+  }
+}
+
+describe('MonComposant', () => {
+  let component: MonComposant;
+  let fixture: ComponentFixture<MonComposant>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [MonComposant],
+      providers: [
+        // Fournir le service mocké en tant que la classe elle-même
+        { provide: MockLocationService, useClass: MockLocationService }
+      ]
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(MonComposant);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should update location href', () => {
+    // Injection directe du service via sa classe
+    const mockLocationService = TestBed.inject(MockLocationService);
+    
+    // Exécuter une méthode de votre composant qui utilise le service de localisation
+    component.someMethodThatSetsHref('http://new-url.com'); // Remplacez par votre méthode réelle
+
+    // Vérifier que le href a été mis à jour correctement
+    expect(mockLocationService.getHref()).toBe('http://new-url.com');
+  });
+});
+
+
+
+
+
+
+
 describe('MonComposant', () => {
   let component: MonComposant;
   let fixture: ComponentFixture<MonComposant>;
