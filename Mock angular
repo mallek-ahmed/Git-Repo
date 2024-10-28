@@ -39,3 +39,54 @@ describe('MonComposant', () => {
     expect(mockLocationService.getHref()).toBe('http://new-url.com');
   });
 });
+
+
+
+
+
+
+
+
+describe('MonComposant', () => {
+  let component: MonComposant;
+  let fixture: ComponentFixture<MonComposant>;
+
+  // Création d'un service de localisation temporaire pour le test
+  class MockLocationService {
+    href: string = 'http://default-url.com';
+
+    getHref(): string {
+      return this.href;
+    }
+
+    setHref(url: string): void {
+      this.href = url;
+    }
+  }
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [MonComposant],
+      providers: [
+        // Utiliser une injection directe via un alias personnalisé
+        { provide: 'LocationService', useClass: MockLocationService } 
+      ]
+    }).compileComponents();
+  });
+
+  beforeEach(() => {
+    fixture = TestBed.createComponent(MonComposant);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('should update location href', () => {
+    // Injection directe du service via son alias
+    const mockLocationService = TestBed.inject('LocationService') as MockLocationService;
+    
+    // Exécuter une méthode de votre composant qui utilise le service de localisation
+    component.someMethodThatSetsHref('http://new-url.com');
+    
+    expect(mockLocationService.getHref()).toBe('http://new-url.com');
+  });
+});
