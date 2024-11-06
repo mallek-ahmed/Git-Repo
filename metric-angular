@@ -1,0 +1,86 @@
+import { NgModule } from '@angular/core';
+import { RouterModule, Routes, Route } from '@angular/router';
+
+const routes: Routes = [
+  {
+    path: 'user',
+    loadChildren: () => {
+      const start = performance.now();
+      return import('./user/user.module').then(m => {
+        const end = performance.now();
+        console.log(`Module 'User' chargé en ${end - start} ms`);
+        return m.UserModule;
+      });
+    }
+  },
+  // Autres routes ici...
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(routes)],
+  exports: [RouterModule]
+})
+export class AppRoutingModule {}
+
+
+
+
+import { Component } from '@angular/core';
+import { Router, NavigationStart, NavigationEnd } from '@angular/router';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html',
+})
+export class AppComponent {
+  navigationStartTime: number;
+
+  constructor(private router: Router) {
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationStart) {
+        this.navigationStartTime = performance.now();
+      }
+
+      if (event instanceof NavigationEnd) {
+        const navigationEndTime = performance.now();
+        const loadTime = navigationEndTime - this.navigationStartTime;
+        console.log(`Route '${event.url}' chargée en ${loadTime} ms`);
+      }
+    });
+  }
+}
+
+
+
+import { Injectable } from '@angular/core';
+import { HttpInterceptor, HttpRequest, HttpHandler, HttpEvent } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { tap } from 'rxjs/operators';
+
+@Injectable()
+export class TimingInterceptor implements HttpInterceptor {
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    const start = performance.now();
+    return next.handle(req).pipe(
+      tap(() => {
+        const end = performance.now();
+        console.log(`Requête ${req.url} traitée en ${end - start} ms`);
+      })
+    );
+  }
+}
+
+
+
+import { HTTP_INTERCEPTORS } from '@angular/common/http';
+import { TimingInterceptor } from './timing.interceptor';
+
+@NgModule({
+  providers: [
+    { provide: HTTP_INTERCEPTORS, useClass: TimingInterceptor, multi: true },
+  ],
+})
+export class AppModule {}
+
+
+
