@@ -1,0 +1,131 @@
+Oui, vous pouvez parfaitement extraire cette logique dans un rôle Ansible. Même si Python n'est pas encore installé, les tâches utilisant des modules basés sur des commandes comme ansible.builtin.shell ou ansible.builtin.command fonctionneront. Voici comment structurer ce rôle pour gérer l'installation de Python :
+
+
+---
+
+Structure du rôle
+
+Créez un rôle appelé install_python en suivant cette structure de base :
+
+roles/
+└── install_python/
+    ├── defaults/
+    │   └── main.yml
+    ├── tasks/
+    │   └── main.yml
+    ├── files/
+    ├── templates/
+    └── vars/
+        └── main.yml
+
+
+---
+
+Fichier defaults/main.yml
+
+Ce fichier contient les valeurs par défaut des variables :
+
+python_version: "3.9.9"
+artifact_url: "http://artifact.company.com/python/Python-{{ python_version }}.tgz"
+artifact_path: "/tmp/Python-{{ python_version }}.tgz"
+
+
+---
+
+Fichier tasks/main.yml
+
+Ce fichier contient la logique pour installer Python depuis l'artefact interne. Il est similaire au playbook précédent, mais organisé en étapes claires :
+
+---
+- name: Check if Python is already installed
+  ansible.builtin.command:
+    cmd: python{{ python_version.split('.')[0] }} --version
+  register: python_check
+  failed_when: false
+  changed_when: false
+
+- name: Skip installation if Python is already installed
+  debug:
+    msg: "Python {{ python_version }} is already installed"
+  when: python_check.rc == 0 and python_version in python_check.stdout
+
+- name: Install dependencies for Python
+  ansible.builtin.yum:
+    name: 
+      - gcc
+      - make
+      - zlib-devel
+      - bzip2
+      - bzip2-devel
+      - readline-devel
+      - sqlite
+      - sqlite-devel
+      - openssl-devel
+      - tk-devel
+      - libffi-devel
+      - xz-devel
+      - wget
+    state: present
+  when: python_check.rc != 0 or python_version not in python_check.stdout
+
+- name: Download Python artifact using wget
+  ansible.builtin.shell:
+    cmd: wget -O {{ artifact_path }} {{ artifact_url }}
+    creates: "{{ artifact_path }}"
+  when: python_check.rc != 0 or python_version not in python_check.stdout
+
+- name: Extract and install Python {{ python_version }}
+  ansible.builtin.shell:
+    cmd: |
+      cd /usr/src
+      tar xzf {{ artifact_path }}
+      cd Python-{{ python_version }}
+      ./configure --enable-optimizations
+      make altinstall
+    creates: /usr/local/bin/python{{ python_version.split('.')[0] }}
+  when: python_check.rc != 0 or python_version not in python_check.stdout
+
+- name: Ensure pip is installed for Python {{ python_version }}
+  ansible.builtin.shell:
+    cmd: python{{ python_version.split('.')[0] }} -m ensurepip --upgrade
+    creates: /usr/local/bin/pip{{ python_version.split('.')[0] }}
+  when: python_check.rc != 0 or python_version not in python_check.stdout
+
+
+---
+
+Utilisation dans un Playbook
+
+Une fois le rôle créé, vous pouvez l'utiliser dans votre playbook principal. Voici un exemple de fichier playbook site.yml :
+
+---
+- name: Install Python on all hosts
+  hosts: all
+  become: true
+  roles:
+    - install_python
+
+
+---
+
+Commande pour exécuter le playbook
+
+ansible-playbook -i inventory site.yml
+
+
+---
+
+Avantages de cette approche
+
+1. Réutilisabilité : Le rôle peut être réutilisé dans différents projets en l'intégrant facilement.
+
+
+2. Modularité : La logique est bien organisée dans un rôle distinct, ce qui rend le projet plus lisible et maintenable.
+
+
+3. Compatibilité sans Python : Toutes les tâches utilisent des modules compatibles avec des systèmes distants sans Python préinstallé, grâce à ansible.builtin.shell et ansible.builtin.command.
+
+
+
+Si vous avez des besoins spécifiques pour adapter ce rôle, n'hésitez pas à demander !
+
