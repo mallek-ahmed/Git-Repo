@@ -1,0 +1,121 @@
+1. Vérifiez les fichiers clés (certificats, keystore, clés privées)
+Vérification des fichiers
+Certificat serveur (nom-serveur.pem) :
+
+Assurez-vous qu’il correspond à la clé privée (nom-serveur.key) :
+bash
+Copy
+Edit
+openssl x509 -noout -modulus -in nom-serveur.pem | openssl md5
+openssl rsa -noout -modulus -in nom-serveur.key | openssl md5
+Les deux valeurs de hachage doivent être identiques.
+Chaîne de certificats (chain.pem) :
+
+Si vous utilisez une chaîne de certificats (certificat serveur + intermédiaire), vérifiez qu’elle est complète :
+bash
+Copy
+Edit
+openssl verify -CAfile chain.pem nom-serveur.pem
+Keystore (keystore.jks) :
+
+Listez les alias et assurez-vous que votre certificat et clé privée sont présents :
+bash
+Copy
+Edit
+keytool -list -keystore keystore.jks
+2. Inspectez la configuration dans server.xml
+Vérifiez les points suivants dans votre fichier server.xml :
+
+Chemin vers le keystore :
+
+Assurez-vous que le chemin est correct et accessible :
+xml
+Copy
+Edit
+certificateKeystoreFile="conf/keystore.jks"
+Si le chemin est relatif, il est basé sur le répertoire d’installation de TomEE.
+Mot de passe du keystore :
+
+Vérifiez qu’il est correctement défini dans certificateKeystorePassword.
+Port HTTPS :
+
+Assurez-vous que le port (par défaut 8443) est libre et configuré correctement :
+xml
+Copy
+Edit
+<Connector port="8443" protocol="org.apache.coyote.http11.Http11NioProtocol"
+           maxThreads="200"
+           SSLEnabled="true">
+3. Testez la connectivité HTTPS
+Tester localement avec OpenSSL
+Exécutez une commande pour tester la connectivité SSL :
+
+bash
+Copy
+Edit
+openssl s_client -connect localhost:8443 -showcerts
+Ce test permet de :
+
+Vérifier si le serveur répond sur le port HTTPS.
+Voir la chaîne de certificats envoyée par le serveur.
+À analyser dans le résultat :
+Chaîne de certificats complète : Assurez-vous que tous les certificats nécessaires (serveur + intermédiaires) sont présents.
+Erreurs : Si une erreur est affichée, comme Verify return code: 21 (unable to verify the first certificate), cela signifie qu'un certificat intermédiaire est manquant.
+4. Consultez les journaux de TomEE
+Fichier de log principal (logs/catalina.out) :
+
+Recherchez des erreurs liées à SSL ou HTTPS :
+bash
+Copy
+Edit
+grep SSL logs/catalina.out
+Erreurs courantes dans les logs :
+
+"Keystore was tampered with, or password was incorrect" :
+Vérifiez le mot de passe du keystore.
+"Alias not found" :
+Assurez-vous que l'alias spécifié dans server.xml correspond à celui dans le keystore.
+"No available certificate or key corresponds to the SSL cipher suites" :
+Vérifiez que la clé privée et le certificat sont correctement associés.
+5. Testez avec un navigateur
+Accédez à votre serveur :
+
+Utilisez https://<nom-domaine>:8443.
+Si vous voyez un avertissement ou une erreur dans le navigateur, notez les détails.
+Erreurs courantes du navigateur :
+
+"NET::ERR_CERT_AUTHORITY_INVALID" :
+Le certificat n'est pas signé par une autorité de certification reconnue.
+"NET::ERR_CERT_COMMON_NAME_INVALID" :
+Le nom du domaine ne correspond pas à celui dans le certificat (CN).
+6. Étapes avancées de débogage
+Activer le mode debug SSL dans TomEE
+Modifiez le script de démarrage de TomEE (catalina.sh) pour inclure :
+bash
+Copy
+Edit
+JAVA_OPTS="$JAVA_OPTS -Djavax.net.debug=ssl,handshake"
+Redémarrez TomEE :
+bash
+Copy
+Edit
+./bin/catalina.sh stop
+./bin/catalina.sh start
+Analysez les logs générés dans logs/catalina.out. Recherchez les erreurs spécifiques liées au processus de handshake SSL.
+7. Validez la configuration SSL/TLS
+Utilisez un outil comme SSL Labs pour tester votre configuration de manière approfondie :
+
+Accédez à SSL Labs Test.
+Entrez votre domaine.
+Vérifiez les points suivants :
+Chaîne de certificats complète.
+Version et configuration de SSL/TLS.
+Sécurisation contre les vulnérabilités connues (par exemple, TLS 1.0 ou 1.1 activés).
+Résumé des étapes :
+Vérifiez les fichiers (certificats, clés, keystore).
+Assurez-vous que la configuration dans server.xml est correcte.
+Testez la connectivité HTTPS avec OpenSSL.
+Consultez les journaux de TomEE pour identifier les erreurs.
+Utilisez un navigateur pour détecter les erreurs liées au certificat.
+Activez le mode debug SSL dans TomEE si nécessaire.
+Testez la configuration avec SSL Labs.
