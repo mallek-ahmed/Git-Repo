@@ -1,0 +1,1 @@
+awk 'BEGIN {n=0;} /-----BEGIN CERTIFICATE-----/ {n++;} { print > "cert" n ".pem"}' un-fichier.pem
