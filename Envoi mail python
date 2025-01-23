@@ -1,0 +1,66 @@
+Pour utiliser le script Python d'envoi d'e-mails que j'ai fourni précédemment, suivez ces étapes :
+1. Copier le code :
+Copiez le code Python suivant dans un fichier texte. Vous pouvez nommer ce fichier send_email.py (ou tout autre nom avec l'extension .py).
+import smtplib
+from email.mime.text import MIMEText
+
+def send_email(sender, receiver, password, server, port, message):
+    try:
+        msg = MIMEText(message)
+        msg['Subject'] = 'Test Email'
+        msg['From'] = sender
+        msg['To'] = receiver
+
+        with smtplib.SMTP(server, port) as smtp:
+            smtp.starttls()  # Pour les connexions sécurisées
+            smtp.login(sender, password)
+            smtp.sendmail(sender, receiver, msg.as_string())
+        print("Email envoyé avec succès!")
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de l'email: {e}")
+
+# Exemple d'utilisation (à modifier)
+sender_email = "votre_email@gmail.com" # Remplacez par votre adresse email
+receiver_email = "destinataire@example.com" # Remplacez par l'adresse du destinataire
+password = "votre_mot_de_passe" # Remplacez par votre mot de passe (ou utilisez une méthode plus sécurisée, voir plus bas)
+smtp_server = "smtp.gmail.com" # Remplacez par le serveur SMTP de votre fournisseur (ex: smtp.orange.fr, smtp.mail.yahoo.com, etc.)
+smtp_port = 587 # Port SMTP (587 pour STARTTLS, 465 pour SSL/TLS implicite)
+
+message_text = "Ceci est un test d'email depuis un script Python." # Le corps de votre message
+
+send_email(sender_email, receiver_email, password, smtp_server, smtp_port, message_text)
+
+2. Modifier les paramètres :
+Ouvrez le fichier send_email.py avec un éditeur de texte et modifiez les variables suivantes dans la section "Exemple d'utilisation" :
+ * sender_email : Remplacez "votre_email@gmail.com" par votre adresse e-mail.
+ * receiver_email : Remplacez "destinataire@example.com" par l'adresse e-mail du destinataire.
+ * password : Très important : Remplacez "votre_mot_de_passe" par le mot de passe de votre compte e-mail. Il est fortement déconseillé de stocker votre mot de passe directement dans le script. Voir la section "Sécurité" ci-dessous pour des alternatives plus sûres.
+ * smtp_server : Remplacez "smtp.gmail.com" par le serveur SMTP de votre fournisseur d'e-mail. Voici quelques exemples :
+   * Gmail : smtp.gmail.com
+   * Orange : smtp.orange.fr
+   * Yahoo : smtp.mail.yahoo.com
+   * [URL non valide supprimée] : smtp-mail.outlook.com
+ * smtp_port : Modifiez le port si nécessaire. 587 est le port standard pour STARTTLS (la méthode de chiffrement recommandée). Si votre fournisseur utilise SSL/TLS implicite, utilisez le port 465.
+ * message_text : Modifiez le contenu du message.
+3. Exécuter le script :
+Ouvrez un terminal ou une invite de commande, naviguez jusqu'au répertoire où vous avez enregistré le fichier send_email.py, et exécutez la commande suivante :
+python3 send_email.py
+
+Si tout se passe bien, vous devriez voir le message "Email envoyé avec succès!" dans le terminal et le destinataire devrait recevoir l'e-mail.
+Sécurité (très important) :
+Stocker votre mot de passe en clair dans le script est une très mauvaise pratique de sécurité. Voici quelques alternatives plus sûres :
+ * Variables d'environnement : Stockez votre mot de passe dans une variable d'environnement et accédez-y depuis le script :
+import os
+password = os.environ.get("EMAIL_PASSWORD")
+
+Ensuite, définissez la variable d'environnement EMAIL_PASSWORD avant d'exécuter le script (par exemple, export EMAIL_PASSWORD="votre_mot_de_passe" sous Linux/macOS ou set EMAIL_PASSWORD="votre_mot_de_passe" sous Windows).
+ * Fichier de configuration : Créez un fichier de configuration séparé (par exemple, config.ini) pour stocker les informations sensibles et lisez-le depuis le script.
+ * Gestionnaire de secrets : Pour les applications plus complexes, utilisez un gestionnaire de secrets dédié comme HashiCorp Vault ou AWS Secrets Manager.
+Gestion des erreurs :
+Le script inclut un bloc try...except pour gérer les erreurs. Si une erreur se produit lors de l'envoi de l'e-mail, un message d'erreur sera affiché dans le terminal. Consultez ce message pour diagnostiquer le problème. Les erreurs courantes incluent :
+ * SMTPSAuthenticationError : Problème d'authentification (mot de passe incorrect, authentification moins sécurisée activée sur votre compte Google, etc.).
+ * SMTPConnectError : Impossible de se connecter au serveur SMTP (nom de serveur incorrect, problème de réseau, pare-feu, etc.).
+ * SMTPRecipientsRefused : Le serveur a refusé le destinataire.
+Tester avec un compte de test :
+Il est fortement recommandé de tester l'envoi d'e-mails avec un compte de test avant d'utiliser votre compte principal, afin d'éviter tout problème potentiel.
+En suivant ces instructions, vous devriez pouvoir utiliser le script Python pour envoyer des e-mails. N'hésitez pas à poser d'autres questions si vous rencontrez des difficultés.
