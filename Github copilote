@@ -75,7 +75,13 @@ Voici un récapitulatif complet de tous les prompts efficaces que je t’ai sugg
 
 
 ---
-
+// Objectif : tester uniquement la logique métier de la méthode faireCalcul()
+// Tous les objets dépendants (services, repositories, utils...) doivent être mockés
+// Ne pas instancier de vraies dépendances
+// Mocker au maximum tout ce qui n'est pas directement testé
+// Concentrez-vous uniquement sur la ligne ou le bloc métier ciblé
+// Utiliser Mockito.mock() + when(...).thenReturn(...)
+// Frameworks imposés : JUnit 4.12 et Mockito 1.10 (pas d'annotations modernes)
 Tu peux combiner ces prompts selon les cas, ou les adapter pour chaque classe.
 Souhaites-tu un petit outil ou script pour générer automatiquement ces prompts à partir d’un nom de classe et de méthodes à tester ?
 
