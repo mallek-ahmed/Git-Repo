@@ -1,0 +1,81 @@
+Voici un récapitulatif complet de tous les prompts efficaces que je t’ai suggérés, organisés par cas d’usage :
+
+
+---
+
+1. Générer des TU pour une classe legacy avec contraintes (frameworks anciens)
+
+// Objectif : générer un test unitaire pour la classe legacy MaClasse
+// Frameworks imposés : JUnit 4.12 et Mockito 1.10.19
+// Ne pas utiliser JUnit 5 ni les annotations modernes (@Mock, @InjectMocks, etc.)
+// Utiliser uniquement Mockito.mock() et when(...).thenReturn(...)
+// Pattern de test : AAA (Arrange, Act, Assert)
+// Classe à tester :
+// public class MaClasse {
+//     private ServiceX serviceX;
+//     public MaClasse(ServiceX serviceX) { this.serviceX = serviceX; }
+//     public int addition(int a, int b) { return serviceX.calculer(a + b); }
+// }
+
+
+---
+
+2. Guider Copilot vers une méthode précise à tester
+
+// Objectif : générer des TU pour la méthode formatUserName(User user)
+// Contrainte : ne pas tester toute la classe, uniquement cette méthode
+// Frameworks : JUnit 4.12, Mockito 1.10
+// Règles :
+// - user.getFirstName() peut être null
+// - user.getLastName() peut être null
+// - Le résultat doit être au format "LASTNAME, Firstname"
+// - Retourner "" si user ou son nom est null
+
+
+---
+
+3. Tester un comportement ou une ligne précise dans une méthode
+
+// L’objectif est de tester le comportement suivant :
+// if (user == null || user.getLastName() == null)
+// Le test doit vérifier que la méthode retourne une chaîne vide ("") dans ce cas
+
+
+---
+
+4. Spécifier quels objets doivent être mockés
+
+// La classe à tester : MaClasse
+// Elle dépend de ServiceX et RepositoryY
+// Ces deux classes doivent être mockées avec Mockito.mock()
+// Ne pas utiliser les annotations @Mock ou @InjectMocks
+// Ne pas instancier directement (pas de new ServiceX())
+// Utiliser when(...).thenReturn(...) pour simuler les comportements
+
+
+---
+
+5. Compléter des tests existants (copier le style des tests partiels)
+
+// Objectif : compléter la couverture de MaClasse
+// Des tests existent déjà pour la méthode faireA()
+// Il manque des tests pour faireB() et faireC()
+// Réutiliser les mocks et le style des tests existants
+// Frameworks utilisés : JUnit 4.12, Mockito 1.10
+
+
+---
+
+6. Cibler toutes les méthodes non encore testées
+
+// Objectif : générer des tests pour toutes les méthodes non testées de MaClasse
+// Réutiliser les mocks et le style des tests déjà présents
+// Couvrir les cas normaux, cas limites, et exceptions
+// Frameworks : JUnit 4.12, Mockito 1.10
+
+
+---
+
+Tu peux combiner ces prompts selon les cas, ou les adapter pour chaque classe.
+Souhaites-tu un petit outil ou script pour générer automatiquement ces prompts à partir d’un nom de classe et de méthodes à tester ?
+
