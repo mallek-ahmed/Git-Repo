@@ -85,3 +85,26 @@ Voici un récapitulatif complet de tous les prompts efficaces que je t’ai sugg
 Tu peux combiner ces prompts selon les cas, ou les adapter pour chaque classe.
 Souhaites-tu un petit outil ou script pour générer automatiquement ces prompts à partir d’un nom de classe et de méthodes à tester ?
 
+
+
+
+
+// === CONTEXTE POUR GITHUB COPILOT ===
+// Projet legacy Java
+// Frameworks : JUnit 4.12, Mockito 1.10.19
+// Ne pas utiliser JUnit 5, ni les annotations modernes (@Mock, @InjectMocks, @ExtendWith, etc.)
+// Ne pas instancier directement les dépendances (utiliser Mockito.mock())
+// Utiliser uniquement : Mockito.mock(), when(), thenReturn(), verify()
+// Respecter le pattern AAA (Arrange, Act, Assert)
+// Objectif :
+// - Compléter la couverture des méthodes non testées de MaClasse
+// - Mocker toutes les dépendances (ServiceX, RepositoryY, etc.)
+// - Se concentrer uniquement sur la logique métier de la méthode testée
+// - Réutiliser les mocks et le style des tests déjà présents dans ce fichier
+// - Nommer les tests selon le format : testNomMethode_CasSignificatif
+
+
+
+
+
+
