@@ -1,0 +1,73 @@
+sudo rpm --import https://packages.adoptium.net/artifactory/api/gpg/key/public
+===============================================================
+sudo tee /etc/yum.repos.d/adoptium.repo <<EOF
+[Adoptium]
+name=Adoptium
+baseurl=https://packages.adoptium.net/artifactory/rpm/centos/9/\$(uname -m)
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.adoptium.net/artifactory/api/gpg/key/public
+EOF
+====================================================================
+sudo dnf update -y
+=====================================================================
+sudo dnf install -y temurin-17-jre
+======================================================================
+
+---
+- name: Installer Java JRE Temurin 17 sur RHEL 9
+  hosts: all
+  become: true
+  tasks:
+
+    - name: Importer la clé GPG Adoptium
+      rpm_key:
+        state: present
+        key: https://packages.adoptium.net/artifactory/api/gpg/key/public
+
+    - name: Créer le fichier de dépôt Adoptium
+      copy:
+        dest: /etc/yum.repos.d/adoptium.repo
+        content: |
+          [Adoptium]
+          name=Adoptium
+          baseurl=https://packages.adoptium.net/artifactory/rpm/centos/9/{{ ansible_architecture }}
+          enabled=1
+          gpgcheck=0
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Mettre à jour le cache des paquets
+      dnf:
+        update_cache: yes
+
+    - name: Installer Temurin JRE 17
+      dnf:
+        name: temurin-17-jre
+        state: present
+
+    - name: Vérifier que Java est installé
+      command: java -version
+      register: java_version_output
+      ignore_errors: yes
+
+    - name: Afficher la version de Java
+      debug:
+        var: java_version_output.stdout_lines
+
+
+
+
+========================================================
+sudo dnf install --assumeno temurin-17-jre
+========================================================
+cd /opt
+sudo mkdir temurin17 && cd temurin17
+sudo curl -LO https://github.com/adoptium/temurin17-binaries/releases/latest/download/OpenJDK17U-jre_x64_linux_hotspot_*.tar.gz
+sudo tar -xzf OpenJDK17U-jre_*.tar.gz --strip-components=1
+export PATH=/opt/temurin17/bin:$PATH
+java -version
+
+========================================================
+========================================================
