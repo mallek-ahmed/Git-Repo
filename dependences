@@ -1,0 +1,13 @@
+<!-- Jakarta XML Binding API -->
+<dependency>
+    <groupId>jakarta.xml.bind</groupId>
+    <artifactId>jakarta.xml.bind-api</artifactId>
+    <version>4.0.0</version>
+</dependency>
+
+<!-- Implémentation JAXB -->
+<dependency>
+    <groupId>org.glassfish.jaxb</groupId>
+    <artifactId>jaxb-runtime</artifactId>
+    <version>4.0.3</version>
+</dependency>
