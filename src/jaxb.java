@@ -1,4 +1,18 @@
-package com.example.jaxb;
+<plugin>
+  <groupId>org.apache.maven.plugins</groupId>
+  <artifactId>maven-dependency-plugin</artifactId>
+  <version>3.6.0</version>
+  <executions>
+    <execution>
+      <goals>
+        <goal>analyze</goal>
+      </goals>
+    </execution>
+  </executions>
+</plugin>
+    
+    
+    package com.example.jaxb;
 
 import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 import java.time.OffsetDateTime;
