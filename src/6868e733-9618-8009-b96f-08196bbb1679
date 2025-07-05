@@ -1,0 +1,286 @@
+// src/app/services/window.service.ts
+import { Injectable } from '@angular/core';
+
+@Injectable({ providedIn: 'root' })
+export class WindowService {
+  open(url: string, target: string = '_blank') {
+    window.open(url, target);
+  }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// src/app/services/window.service.spec.ts
+import { TestBed } from '@angular/core/testing';
+import { WindowService } from './window.service';
+
+describe('WindowService', () => {
+  let service: WindowService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({});
+    service = TestBed.inject(WindowService);
+  });
+
+  it('should call window.open with given url and target', () => {
+    const spy = spyOn(window, 'open');
+
+    const url = '/apercu-pdf';
+    const target = '_blank';
+
+    service.open(url, target);
+
+    expect(spy).toHaveBeenCalledOnceWith(url, target);
+  });
+});
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// src/app/pages/apercu-pdf/apercu-pdf.component.ts
+import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-apercu-pdf',
+  templateUrl: './apercu-pdf.component.html',
+  styleUrls: ['./apercu-pdf.component.scss']
+})
+export class ApercuPdfComponent {
+  print() {
+    window.print();
+  }
+
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+<div class="pdf-style">
+
+  <div class="pdf-header">
+    <span class="pdf-logo">📝</span>
+    <span class="pdf-header-title">Document Officiel</span>
+    <button class="btn-print" (click)="print()">🖨️ Imprimer</button>
+  </div>
+
+  <div class="pdf-content">
+    <h1 class="pdf-title">Résumé du Rapport Annuel</h1>
+
+    <p class="pdf-paragraph">
+      Ce document présente une synthèse des activités réalisées au cours de l'année. Il décrit les principales
+      réussites, les indicateurs de performance, ainsi que les perspectives de croissance pour l'année suivante.
+    </p>
+
+    <p class="pdf-paragraph">
+      Grâce à une gestion rigoureuse et à une stratégie orientée client, l’organisation a atteint ses objectifs
+      tout en maintenant une stabilité financière remarquable.
+    </p>
+
+    <h2 class="pdf-subtitle">Points clés :</h2>
+    <ul class="pdf-list">
+      <li>Augmentation de 12 % du chiffre d'affaires.</li>
+      <li>Renforcement de la satisfaction client (+15 %).</li>
+      <li>Réduction des coûts opérationnels de 8 %.</li>
+      <li>Lancement de deux nouveaux services innovants.</li>
+    </ul>
+  </div>
+
+  <div class="pdf-footer">
+    <span>© 2025 MonEntreprise — Rapport Annuel</span>
+  </div>
+
+</div>
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+.pdf-style {
+  margin: 2cm auto;
+  max-width: 21cm;
+  padding: 2cm;
+  font-family: 'Times New Roman', serif;
+  font-size: 12pt;
+  background-color: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  line-height: 1.6;
+  color: #333;
+}
+
+.pdf-style {
+  position: relative;
+  margin: 2cm auto;
+  max-width: 21cm;
+  padding: 2cm;
+  font-family: 'Times New Roman', serif;
+  font-size: 12pt;
+  background-color: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  color: #333;
+  line-height: 1.6;
+}
+
+.pdf-header {
+  position: sticky;
+  top: 0;
+  background-color: #f9f9f9;
+  padding: 10px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #ccc;
+  margin-bottom: 1cm;
+}
+
+.pdf-logo {
+  font-size: 20pt;
+}
+
+.pdf-header-title {
+  font-weight: bold;
+  font-size: 14pt;
+}
+
+.btn-print {
+  background-color: #0056b3;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-size: 11pt;
+  border-radius: 4px;
+}
+
+.btn-print:hover {
+  background-color: #003f88;
+}
+
+.pdf-content {
+  margin-bottom: 2cm;
+}
+
+.pdf-title {
+  text-align: center;
+  font-size: 18pt;
+  font-weight: bold;
+  margin-bottom: 1cm;
+}
+
+.pdf-subtitle {
+  font-size: 14pt;
+  font-weight: bold;
+  margin-top: 1cm;
+  margin-bottom: 0.5cm;
+}
+
+.pdf-paragraph {
+  text-align: justify;
+  margin-bottom: 1cm;
+}
+
+.pdf-list {
+  list-style-type: disc;
+  padding-left: 1.5cm;
+  margin-bottom: 1cm;
+}
+
+.pdf-footer {
+  position: relative;
+  text-align: center;
+  font-size: 10pt;
+  border-top: 1px solid #ccc;
+  padding-top: 1cm;
+}
+
+@media print {
+  .btn-print {
+    display: none;
+  }
+
+  .pdf-style {
+    border: none;
+    box-shadow: none;
+    margin: 0;
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .pdf-header,
+  .pdf-footer {
+    position: static;
+    background: none;
+    border: none;
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+import { Component } from '@angular/core';
+import { WindowService } from 'src/app/services/window.service';
+
+@Component({
+  selector: 'app-button-pdf',
+  templateUrl: './button-pdf.component.html'
+})
+export class ButtonPdfComponent {
+  constructor(private windowService: WindowService) {}
+
+  ouvrirApercuPdf() {
+    this.windowService.open('/apercu-pdf');
+  }
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+<button mat-flat-button color="primary" (click)="ouvrirApercuPdf()">
+  Voir l’aperçu PDF
+</button>
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+// button-pdf.component.spec.ts
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ButtonPdfComponent } from './button-pdf.component';
+import { WindowService } from 'src/app/services/window.service';
+
+describe('ButtonPdfComponent', () => {
+  let component: ButtonPdfComponent;
+  let fixture: ComponentFixture<ButtonPdfComponent>;
+  let windowServiceSpy: jasmine.SpyObj<WindowService>;
+
+  beforeEach(async () => {
+    const spy = jasmine.createSpyObj('WindowService', ['open']);
+
+    await TestBed.configureTestingModule({
+      declarations: [ButtonPdfComponent],
+      providers: [{ provide: WindowService, useValue: spy }]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ButtonPdfComponent);
+    component = fixture.componentInstance;
+    windowServiceSpy = TestBed.inject(WindowService) as jasmine.SpyObj<WindowService>;
+  });
+
+  it('should call WindowService.open when button clicked', () => {
+    component.ouvrirApercuPdf();
+    expect(windowServiceSpy.open).toHaveBeenCalledWith('/apercu-pdf');
+  });
+});
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ApercuPdfComponent } from './apercu-pdf.component';
+
+describe('ApercuPdfComponent', () => {
+  let component: ApercuPdfComponent;
+  let fixture: ComponentFixture<ApercuPdfComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      declarations: [ApercuPdfComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(ApercuPdfComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('doit appeler window.print() lorsque print() est appelé', () => {
+    spyOn(window, 'print');
+    component.print();
+    expect(window.print).toHaveBeenCalled();
+  });
+});
