@@ -90,7 +90,7 @@ export class ApercuPdfComponent {
 
 .pdf-style {
   margin: 2cm auto;
-  max-width: 21cm;
+  max-width: 65%;
   padding: 2cm;
   font-family: 'Times New Roman', serif;
   font-size: 12pt;
