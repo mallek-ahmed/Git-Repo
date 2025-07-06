@@ -46,6 +46,10 @@ export class ApercuPdfComponent {
     window.print();
   }
 
+  closePdf() {
+    window.close();
+  }
+
 }
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -81,7 +85,10 @@ export class ApercuPdfComponent {
 
   <div class="pdf-footer">
     <span>© 2025 MonEntreprise — Rapport Annuel</span>
-  </div>
+    <button class="btn-close" (click)="closePdf()">
+        ✔️ Lu et fermer
+    </button>
+</div>
 
 </div>
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,6 +194,21 @@ export class ApercuPdfComponent {
   padding-top: 1cm;
 }
 
+.btn-close {
+  margin-left: 20px;
+  padding: 8px 16px;
+  border-radius: 5px;
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  background-color: #0d47a1;
+}
+
+
 @media print {
   .btn-print {
     display: none;
@@ -287,5 +309,15 @@ describe('ApercuPdfComponent', () => {
     spyOn(window, 'print');
     component.print();
     expect(window.print).toHaveBeenCalled();
+  });
+
+  it('doit appeler window.close() lorsque closePdf() est appelé', () => {
+    spyOn(window, 'close');
+    component.closePdf();
+    expect(window.close).toHaveBeenCalled();
+  });
+
+  it('should create', () => {
+    expect(component).toBeTruthy();
   });
 });
