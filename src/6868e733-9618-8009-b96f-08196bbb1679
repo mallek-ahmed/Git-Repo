@@ -222,9 +222,14 @@ export class ButtonPdfComponent {
   constructor(private windowService: WindowService) {}
 
   ouvrirApercuPdf() {
-    this.windowService.open('/apercu-pdf');
+    this.windowService.open('/#/apercu-pdf', '_blank');
   }
 }
+//////////////////////////////////////////////////////////////////////////////////////////////////////
+dans les routes 
+  { path: "apercu-pdf", component: ApercuPdfComponent },
+dans la declaration du module 
+ApercuPdfComponent, 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 <button mat-flat-button color="primary" (click)="ouvrirApercuPdf()">
   Voir l’aperçu PDF
