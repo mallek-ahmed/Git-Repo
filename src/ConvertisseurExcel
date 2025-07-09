@@ -1,0 +1,528 @@
+Parfait. Voici tous les fichiers complets nécessaires pour ton projet csv_to_oracle, avec structure claire, support CLI + GUI, et respect des bonnes pratiques (modularité, typage, robustesse).
+
+
+---
+
+✅ STRUCTURE COMPLÈTE DU PROJET
+
+csv_to_oracle/
+│
+├── __init__.py
+├── reader.py
+├── formatter.py
+├── generator.py
+├── cli.py
+├── gui.py
+├── pyproject.toml
+└── tests/
+    └── test_formatter.py
+
+
+---
+
+📄 csv_to_oracle/__init__.py
+
+# csv_to_oracle
+__version__ = "0.1.0"
+
+
+---
+
+📄 csv_to_oracle/reader.py
+
+from pathlib import Path
+import pandas as pd
+
+def read_file(path: str | Path) -> pd.DataFrame:
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Fichier introuvable : {path}")
+    if path.suffix.lower() == ".xlsx":
+        return pd.read_excel(path, dtype=str)
+    if path.suffix.lower() == ".csv":
+        return pd.read_csv(path, dtype=str, encoding="utf-8-sig", sep=None, engine="python")
+    raise ValueError("Format non supporté. Seuls CSV et XLSX sont acceptés.")
+
+
+---
+
+📄 csv_to_oracle/formatter.py
+
+from datetime import datetime
+import pandas as pd
+
+_DATE_PATTERNS = [
+    ("%d/%m/%Y %H:%M:%S", "YYYY-MM-DD HH24:MI:SS"),
+    ("%Y-%m-%d %H:%M:%S", "YYYY-MM-DD HH24:MI:SS"),
+    ("%d/%m/%Y", "YYYY-MM-DD"),
+    ("%Y-%m-%d", "YYYY-MM-DD"),
+]
+
+def to_oracle_literal(value: object) -> str:
+    if pd.isna(value):
+        return "NULL"
+
+    if isinstance(value, (int, float)):
+        return str(value)
+
+    s = str(value).strip()
+
+    try:
+        num = float(s.replace("\u202f", "").replace(" ", "").replace(",", "."))
+        return str(num)
+    except ValueError:
+        pass
+
+    for fmt_in, fmt_out in _DATE_PATTERNS:
+        try:
+            dt = datetime.strptime(s, fmt_in)
+            printable = dt.strftime("%Y-%m-%d %H:%M:%S" if "HH24" in fmt_out else "%Y-%m-%d")
+            return f"TO_DATE('{printable}', '{fmt_out}')"
+        except ValueError:
+            continue
+
+    return f"'{s.replace(\"'\", \"''\")}'"
+
+
+---
+
+📄 csv_to_oracle/generator.py
+
+from pathlib import Path
+import pandas as pd
+from .formatter import to_oracle_literal
+
+def make_insert(df: pd.DataFrame, table: str) -> list[str]:
+    cols = ", ".join(df.columns)
+    inserts = []
+    for _, row in df.iterrows():
+        values = ", ".join(to_oracle_literal(row[col]) for col in df.columns)
+        inserts.append(f"INSERT INTO {table} ({cols}) VALUES ({values});")
+    return inserts
+
+def write_sql_file(sql_lines: list[str], source_file: str | Path, table: str) -> Path:
+    path = Path(source_file)
+    output = path.with_name(f"{path.stem}_{table}.sql")
+    output.write_text("\n".join(sql_lines), encoding="utf-8")
+    return output
+
+
+---
+
+📄 csv_to_oracle/cli.py
+
+import argparse
+from .reader import read_file
+from .generator import make_insert, write_sql_file
+
+def main():
+    parser = argparse.ArgumentParser(description="Convertisseur CSV/XLSX en INSERT Oracle")
+    parser.add_argument("file", help="Chemin du fichier .csv ou .xlsx")
+    parser.add_argument("table", help="Nom de la table Oracle")
+    args = parser.parse_args()
+
+    df = read_file(args.file)
+    inserts = make_insert(df, args.table)
+    output_file = write_sql_file(inserts, args.file, args.table)
+
+    print(f"✅ {len(inserts)} requêtes générées dans : {output_file}")
+
+if __name__ == "__main__":
+    main()
+
+
+---
+
+📄 csv_to_oracle/gui.py
+
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from .reader import read_file
+from .generator import make_insert, write_sql_file
+
+def launch_gui():
+    def select_file():
+        file = filedialog.askopenfilename(filetypes=[("CSV or Excel", "*.csv *.xlsx")])
+        if file:
+            entry_file.delete(0, tk.END)
+            entry_file.insert(0, file)
+
+    def generate_sql():
+        file = entry_file.get().strip()
+        table = entry_table.get().strip()
+        if not file or not table:
+            messagebox.showerror("Erreur", "Veuillez sélectionner un fichier et entrer un nom de table.")
+            return
+        try:
+            df = read_file(file)
+            inserts = make_insert(df, table)
+            output = write_sql_file(inserts, file, table)
+            messagebox.showinfo("Succès", f"{len(inserts)} requêtes générées dans :\n{output}")
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e))
+
+    root = tk.Tk()
+    root.title("CSV/Excel → INSERT Oracle")
+    root.geometry("500x220")
+    root.resizable(False, False)
+
+    tk.Label(root, text="Fichier CSV ou Excel :").pack(pady=5)
+    entry_file = tk.Entry(root, width=60)
+    entry_file.pack()
+    tk.Button(root, text="Parcourir...", command=select_file).pack(pady=5)
+
+    tk.Label(root, text="Nom de la table Oracle :").pack(pady=5)
+    entry_table = tk.Entry(root, width=40)
+    entry_table.pack()
+
+    tk.Button(root, text="Générer SQL", command=generate_sql, bg="green", fg="white").pack(pady=15)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    launch_gui()
+
+
+---
+
+📄 csv_to_oracle/pyproject.toml
+
+[project]
+name = "csv_to_oracle"
+version = "0.1.0"
+description = "Convertisseur CSV/XLSX en INSERT Oracle (CLI + GUI)"
+requires-python = ">=3.10"
+dependencies = ["pandas", "openpyxl"]
+
+[project.scripts]
+csv-to-oracle-cli = "csv_to_oracle.cli:main"
+csv-to-oracle-gui = "csv_to_oracle.gui:launch_gui"
+
+
+---
+
+📄 csv_to_oracle/tests/test_formatter.py
+
+from csv_to_oracle.formatter import to_oracle_literal
+import numpy as np
+
+def test_null():
+    assert to_oracle_literal(np.nan) == "NULL"
+
+def test_number():
+    assert to_oracle_literal("1 234,56") == "1234.56"
+
+def test_date_fr():
+    assert to_oracle_literal("21/06/2024") == "TO_DATE('2024-06-21', 'YYYY-MM-DD')"
+
+def test_date_time():
+    assert to_oracle_literal("2024-07-01 15:45:30") == "TO_DATE('2024-07-01 15:45:30', 'YYYY-MM-DD HH24:MI:SS')"
+
+def test_text_escape():
+    assert to_oracle_literal("O'Reilly") == "'O''Reilly'"
+
+
+---
+
+✅ Instructions d'installation et d'exécution
+
+1. Installation
+
+
+
+pip install -e .
+
+2. Utilisation CLI
+
+
+
+csv-to-oracle-cli donnees.xlsx NOM_TABLE
+
+3. Utilisation GUI
+
+
+
+csv-to-oracle-gui
+
+4. Tests
+
+
+
+pytest
+
+
+---
+
+Souhaites-tu maintenant :
+
+un README.md clair pour le repo Git ?
+
+un .bat ou .desktop pour lancement GUI rapide ?
+
+ou une gestion de configuration personnalisée (par exemple : format par défaut, nom de colonne exclue, etc.) ?
+
+
+Parfait. Voici tous les fichiers complets nécessaires pour ton projet csv_to_oracle, avec structure claire, support CLI + GUI, et respect des bonnes pratiques (modularité, typage, robustesse).
+
+
+---
+
+✅ STRUCTURE COMPLÈTE DU PROJET
+
+csv_to_oracle/
+│
+├── __init__.py
+├── reader.py
+├── formatter.py
+├── generator.py
+├── cli.py
+├── gui.py
+├── pyproject.toml
+└── tests/
+    └── test_formatter.py
+
+
+---
+
+📄 csv_to_oracle/__init__.py
+
+# csv_to_oracle
+__version__ = "0.1.0"
+
+
+---
+
+📄 csv_to_oracle/reader.py
+
+from pathlib import Path
+import pandas as pd
+
+def read_file(path: str | Path) -> pd.DataFrame:
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Fichier introuvable : {path}")
+    if path.suffix.lower() == ".xlsx":
+        return pd.read_excel(path, dtype=str)
+    if path.suffix.lower() == ".csv":
+        return pd.read_csv(path, dtype=str, encoding="utf-8-sig", sep=None, engine="python")
+    raise ValueError("Format non supporté. Seuls CSV et XLSX sont acceptés.")
+
+
+---
+
+📄 csv_to_oracle/formatter.py
+
+from datetime import datetime
+import pandas as pd
+
+_DATE_PATTERNS = [
+    ("%d/%m/%Y %H:%M:%S", "YYYY-MM-DD HH24:MI:SS"),
+    ("%Y-%m-%d %H:%M:%S", "YYYY-MM-DD HH24:MI:SS"),
+    ("%d/%m/%Y", "YYYY-MM-DD"),
+    ("%Y-%m-%d", "YYYY-MM-DD"),
+]
+
+def to_oracle_literal(value: object) -> str:
+    if pd.isna(value):
+        return "NULL"
+
+    if isinstance(value, (int, float)):
+        return str(value)
+
+    s = str(value).strip()
+
+    try:
+        num = float(s.replace("\u202f", "").replace(" ", "").replace(",", "."))
+        return str(num)
+    except ValueError:
+        pass
+
+    for fmt_in, fmt_out in _DATE_PATTERNS:
+        try:
+            dt = datetime.strptime(s, fmt_in)
+            printable = dt.strftime("%Y-%m-%d %H:%M:%S" if "HH24" in fmt_out else "%Y-%m-%d")
+            return f"TO_DATE('{printable}', '{fmt_out}')"
+        except ValueError:
+            continue
+
+    return f"'{s.replace(\"'\", \"''\")}'"
+
+
+---
+
+📄 csv_to_oracle/generator.py
+
+from pathlib import Path
+import pandas as pd
+from .formatter import to_oracle_literal
+
+def make_insert(df: pd.DataFrame, table: str) -> list[str]:
+    cols = ", ".join(df.columns)
+    inserts = []
+    for _, row in df.iterrows():
+        values = ", ".join(to_oracle_literal(row[col]) for col in df.columns)
+        inserts.append(f"INSERT INTO {table} ({cols}) VALUES ({values});")
+    return inserts
+
+def write_sql_file(sql_lines: list[str], source_file: str | Path, table: str) -> Path:
+    path = Path(source_file)
+    output = path.with_name(f"{path.stem}_{table}.sql")
+    output.write_text("\n".join(sql_lines), encoding="utf-8")
+    return output
+
+
+---
+
+📄 csv_to_oracle/cli.py
+
+import argparse
+from .reader import read_file
+from .generator import make_insert, write_sql_file
+
+def main():
+    parser = argparse.ArgumentParser(description="Convertisseur CSV/XLSX en INSERT Oracle")
+    parser.add_argument("file", help="Chemin du fichier .csv ou .xlsx")
+    parser.add_argument("table", help="Nom de la table Oracle")
+    args = parser.parse_args()
+
+    df = read_file(args.file)
+    inserts = make_insert(df, args.table)
+    output_file = write_sql_file(inserts, args.file, args.table)
+
+    print(f"✅ {len(inserts)} requêtes générées dans : {output_file}")
+
+if __name__ == "__main__":
+    main()
+
+
+---
+
+📄 csv_to_oracle/gui.py
+
+import tkinter as tk
+from tkinter import filedialog, messagebox
+from .reader import read_file
+from .generator import make_insert, write_sql_file
+
+def launch_gui():
+    def select_file():
+        file = filedialog.askopenfilename(filetypes=[("CSV or Excel", "*.csv *.xlsx")])
+        if file:
+            entry_file.delete(0, tk.END)
+            entry_file.insert(0, file)
+
+    def generate_sql():
+        file = entry_file.get().strip()
+        table = entry_table.get().strip()
+        if not file or not table:
+            messagebox.showerror("Erreur", "Veuillez sélectionner un fichier et entrer un nom de table.")
+            return
+        try:
+            df = read_file(file)
+            inserts = make_insert(df, table)
+            output = write_sql_file(inserts, file, table)
+            messagebox.showinfo("Succès", f"{len(inserts)} requêtes générées dans :\n{output}")
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e))
+
+    root = tk.Tk()
+    root.title("CSV/Excel → INSERT Oracle")
+    root.geometry("500x220")
+    root.resizable(False, False)
+
+    tk.Label(root, text="Fichier CSV ou Excel :").pack(pady=5)
+    entry_file = tk.Entry(root, width=60)
+    entry_file.pack()
+    tk.Button(root, text="Parcourir...", command=select_file).pack(pady=5)
+
+    tk.Label(root, text="Nom de la table Oracle :").pack(pady=5)
+    entry_table = tk.Entry(root, width=40)
+    entry_table.pack()
+
+    tk.Button(root, text="Générer SQL", command=generate_sql, bg="green", fg="white").pack(pady=15)
+
+    root.mainloop()
+
+if __name__ == "__main__":
+    launch_gui()
+
+
+---
+
+📄 csv_to_oracle/pyproject.toml
+
+[project]
+name = "csv_to_oracle"
+version = "0.1.0"
+description = "Convertisseur CSV/XLSX en INSERT Oracle (CLI + GUI)"
+requires-python = ">=3.10"
+dependencies = ["pandas", "openpyxl"]
+
+[project.scripts]
+csv-to-oracle-cli = "csv_to_oracle.cli:main"
+csv-to-oracle-gui = "csv_to_oracle.gui:launch_gui"
+
+
+---
+
+📄 csv_to_oracle/tests/test_formatter.py
+
+from csv_to_oracle.formatter import to_oracle_literal
+import numpy as np
+
+def test_null():
+    assert to_oracle_literal(np.nan) == "NULL"
+
+def test_number():
+    assert to_oracle_literal("1 234,56") == "1234.56"
+
+def test_date_fr():
+    assert to_oracle_literal("21/06/2024") == "TO_DATE('2024-06-21', 'YYYY-MM-DD')"
+
+def test_date_time():
+    assert to_oracle_literal("2024-07-01 15:45:30") == "TO_DATE('2024-07-01 15:45:30', 'YYYY-MM-DD HH24:MI:SS')"
+
+def test_text_escape():
+    assert to_oracle_literal("O'Reilly") == "'O''Reilly'"
+
+
+---
+
+✅ Instructions d'installation et d'exécution
+
+1. Installation
+
+
+
+pip install -e .
+
+2. Utilisation CLI
+
+
+
+csv-to-oracle-cli donnees.xlsx NOM_TABLE
+
+3. Utilisation GUI
+
+
+
+csv-to-oracle-gui
+
+4. Tests
+
+
+
+pytest
+
+
+---
+
+Souhaites-tu maintenant :
+
+un README.md clair pour le repo Git ?
+
+un .bat ou .desktop pour lancement GUI rapide ?
+
+ou une gestion de configuration personnalisée (par exemple : format par défaut, nom de colonne exclue, etc.) ?
+
+
