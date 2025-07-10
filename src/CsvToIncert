@@ -1,0 +1,560 @@
+Très bien ! Voici un programme Java 17 avec Maven qui fait exactement la même chose que la version Python CLI :
+
+📥 Lit un fichier CSV ou Excel (XLSX) avec en-tête
+
+🔎 Détecte automatiquement :
+
+les dates (et les transforme en TO_DATE(...))
+
+les nombres avec virgule ou négatifs
+
+les chaînes avec apostrophes
+
+les valeurs vides → NULL
+
+
+🧾 Génère les requêtes Oracle SQL INSERT INTO ... VALUES (...)
+
+✅ Utilisation ligne de commande uniquement
+
+
+
+---
+
+✅ Structure du projet Maven
+
+csv-to-oracle-java/
+├── pom.xml
+└── src/
+    └── main/
+        └── java/
+            └── org/example/csvtooracle/
+                ├── Main.java
+                ├── CsvReader.java
+                ├── OracleFormatter.java
+                └── SqlGenerator.java
+
+
+---
+
+📄 pom.xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.example</groupId>
+  <artifactId>csv-to-oracle</artifactId>
+  <version>1.0-SNAPSHOT</version>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <!-- CSV Reader -->
+    <dependency>
+      <groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId>
+      <version>5.8</version>
+    </dependency>
+
+    <!-- Excel support -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+  </dependencies>
+</project>
+
+
+---
+
+📄 Main.java
+
+package org.example.csvtooracle;
+
+import java.io.IOException;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        if (args.length != 2) {
+            System.out.println("Usage: java -jar csv-to-oracle.jar <fichier.csv|xlsx> <nom_table>");
+            return;
+        }
+
+        String filePath = args[0];
+        String tableName = args[1];
+
+        var data = CsvReader.read(filePath);
+        List<String> inserts = SqlGenerator.generateInsertStatements(data, tableName);
+
+        String output = filePath.replaceFirst("(\\.csv|\\.xlsx)$", "_" + tableName + ".sql");
+        java.nio.file.Files.write(java.nio.file.Path.of(output), inserts);
+        System.out.println("✅ " + inserts.size() + " requêtes générées : " + output);
+    }
+}
+
+
+---
+
+📄 CsvReader.java
+
+package org.example.csvtooracle;
+
+import com.opencsv.CSVReader;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+public class CsvReader {
+    public static List<Map<String, String>> read(String filePath) throws IOException {
+        if (filePath.endsWith(".csv")) {
+            return readCsv(filePath);
+        } else if (filePath.endsWith(".xlsx")) {
+            return readExcel(filePath);
+        } else {
+            throw new IllegalArgumentException("Fichier non supporté : " + filePath);
+        }
+    }
+
+    private static List<Map<String, String>> readCsv(String filePath) throws IOException {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (CSVReader reader = new CSVReader(
+                new InputStreamReader(new FileInputStream(filePath), StandardCharsets.UTF_8))) {
+            String[] header = reader.readNext();
+            if (header == null) throw new IOException("Fichier vide");
+            String[] line;
+            while ((line = reader.readNext()) != null) {
+                Map<String, String> row = new LinkedHashMap<>();
+                for (int i = 0; i < header.length; i++) {
+                    row.put(header[i], i < line.length ? line[i] : null);
+                }
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private static List<Map<String, String>> readExcel(String filePath) throws IOException {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (InputStream is = new FileInputStream(filePath);
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> it = sheet.iterator();
+
+            if (!it.hasNext()) throw new IOException("Fichier Excel vide");
+
+            Row headerRow = it.next();
+            List<String> headers = new ArrayList<>();
+            for (Cell cell : headerRow) headers.add(cell.getStringCellValue());
+
+            while (it.hasNext()) {
+                Row row = it.next();
+                Map<String, String> map = new LinkedHashMap<>();
+                for (int i = 0; i < headers.size(); i++) {
+                    Cell cell = row.getCell(i);
+                    String value = (cell == null) ? null : getCellValueAsString(cell);
+                    map.put(headers.get(i), value);
+                }
+                rows.add(map);
+            }
+        }
+        return rows;
+    }
+
+    private static String getCellValueAsString(Cell cell) {
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue();
+            case NUMERIC -> DateUtil.isCellDateFormatted(cell) ?
+                cell.getDateCellValue().toString() :
+                Double.toString(cell.getNumericCellValue());
+            case BOOLEAN -> Boolean.toString(cell.getBooleanCellValue());
+            case FORMULA -> cell.getCellFormula();
+            default -> null;
+        };
+    }
+}
+
+
+---
+
+📄 OracleFormatter.java
+
+package org.example.csvtooracle;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class OracleFormatter {
+
+    public static String format(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "NULL";
+        String value = raw.trim();
+
+        // Essai : nombre
+        try {
+            String normalized = value.replace("\u202f", "").replace(" ", "").replace(",", ".");
+            Double d = Double.parseDouble(normalized);
+            return d.toString();
+        } catch (NumberFormatException ignored) { }
+
+        // Essai : date
+        String[][] formats = {
+                {"dd/MM/yyyy HH:mm:ss", "YYYY-MM-DD HH24:MI:SS"},
+                {"yyyy-MM-dd HH:mm:ss", "YYYY-MM-DD HH24:MI:SS"},
+                {"dd/MM/yyyy", "YYYY-MM-DD"},
+                {"yyyy-MM-dd", "YYYY-MM-DD"}
+        };
+
+        for (String[] fmt : formats) {
+            try {
+                Date date = new SimpleDateFormat(fmt[0]).parse(value);
+                String sqlDate = new SimpleDateFormat(fmt[0].contains("HH") ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd").format(date);
+                return "TO_DATE('" + sqlDate + "', '" + fmt[1] + "')";
+            } catch (ParseException ignored) { }
+        }
+
+        return "'" + value.replace("'", "''") + "'";
+    }
+}
+
+
+---
+
+📄 SqlGenerator.java
+
+package org.example.csvtooracle;
+
+import java.util.*;
+
+public class SqlGenerator {
+    public static List<String> generateInsertStatements(List<Map<String, String>> rows, String table) {
+        List<String> sql = new ArrayList<>();
+        if (rows.isEmpty()) return sql;
+
+        List<String> columns = new ArrayList<>(rows.get(0).keySet());
+        String columnList = String.join(", ", columns);
+
+        for (Map<String, String> row : rows) {
+            List<String> values = new ArrayList<>();
+            for (String col : columns) {
+                values.add(OracleFormatter.format(row.get(col)));
+            }
+            String line = String.format("INSERT INTO %s (%s) VALUES (%s);", table, columnList, String.join(", ", values));
+            sql.add(line);
+        }
+
+        return sql;
+    }
+}
+
+
+---
+
+✅ Compilation & exécution
+
+1. Compiler :
+
+mvn clean package
+
+2. Exécuter :
+
+java -jar target/csv-to-oracle-1.0-SNAPSHOT.jar donnees.csv MA_TABLE
+
+Un fichier donnees_MA_TABLE.sql sera généré dans le même dossier.
+
+
+---
+
+Souhaites-tu aussi une option --dry-run, ou une gestion de batch (ex: 1000 lignes par script) ?
+
+Très bien ! Voici un programme Java 17 avec Maven qui fait exactement la même chose que la version Python CLI :
+
+📥 Lit un fichier CSV ou Excel (XLSX) avec en-tête
+
+🔎 Détecte automatiquement :
+
+les dates (et les transforme en TO_DATE(...))
+
+les nombres avec virgule ou négatifs
+
+les chaînes avec apostrophes
+
+les valeurs vides → NULL
+
+
+🧾 Génère les requêtes Oracle SQL INSERT INTO ... VALUES (...)
+
+✅ Utilisation ligne de commande uniquement
+
+
+
+---
+
+✅ Structure du projet Maven
+
+csv-to-oracle-java/
+├── pom.xml
+└── src/
+    └── main/
+        └── java/
+            └── org/example/csvtooracle/
+                ├── Main.java
+                ├── CsvReader.java
+                ├── OracleFormatter.java
+                └── SqlGenerator.java
+
+
+---
+
+📄 pom.xml
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>org.example</groupId>
+  <artifactId>csv-to-oracle</artifactId>
+  <version>1.0-SNAPSHOT</version>
+
+  <properties>
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+  </properties>
+
+  <dependencies>
+    <!-- CSV Reader -->
+    <dependency>
+      <groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId>
+      <version>5.8</version>
+    </dependency>
+
+    <!-- Excel support -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+  </dependencies>
+</project>
+
+
+---
+
+📄 Main.java
+
+package org.example.csvtooracle;
+
+import java.io.IOException;
+import java.util.List;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        if (args.length != 2) {
+            System.out.println("Usage: java -jar csv-to-oracle.jar <fichier.csv|xlsx> <nom_table>");
+            return;
+        }
+
+        String filePath = args[0];
+        String tableName = args[1];
+
+        var data = CsvReader.read(filePath);
+        List<String> inserts = SqlGenerator.generateInsertStatements(data, tableName);
+
+        String output = filePath.replaceFirst("(\\.csv|\\.xlsx)$", "_" + tableName + ".sql");
+        java.nio.file.Files.write(java.nio.file.Path.of(output), inserts);
+        System.out.println("✅ " + inserts.size() + " requêtes générées : " + output);
+    }
+}
+
+
+---
+
+📄 CsvReader.java
+
+package org.example.csvtooracle;
+
+import com.opencsv.CSVReader;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+public class CsvReader {
+    public static List<Map<String, String>> read(String filePath) throws IOException {
+        if (filePath.endsWith(".csv")) {
+            return readCsv(filePath);
+        } else if (filePath.endsWith(".xlsx")) {
+            return readExcel(filePath);
+        } else {
+            throw new IllegalArgumentException("Fichier non supporté : " + filePath);
+        }
+    }
+
+    private static List<Map<String, String>> readCsv(String filePath) throws IOException {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (CSVReader reader = new CSVReader(
+                new InputStreamReader(new FileInputStream(filePath), StandardCharsets.UTF_8))) {
+            String[] header = reader.readNext();
+            if (header == null) throw new IOException("Fichier vide");
+            String[] line;
+            while ((line = reader.readNext()) != null) {
+                Map<String, String> row = new LinkedHashMap<>();
+                for (int i = 0; i < header.length; i++) {
+                    row.put(header[i], i < line.length ? line[i] : null);
+                }
+                rows.add(row);
+            }
+        }
+        return rows;
+    }
+
+    private static List<Map<String, String>> readExcel(String filePath) throws IOException {
+        List<Map<String, String>> rows = new ArrayList<>();
+        try (InputStream is = new FileInputStream(filePath);
+             Workbook workbook = new XSSFWorkbook(is)) {
+            Sheet sheet = workbook.getSheetAt(0);
+            Iterator<Row> it = sheet.iterator();
+
+            if (!it.hasNext()) throw new IOException("Fichier Excel vide");
+
+            Row headerRow = it.next();
+            List<String> headers = new ArrayList<>();
+            for (Cell cell : headerRow) headers.add(cell.getStringCellValue());
+
+            while (it.hasNext()) {
+                Row row = it.next();
+                Map<String, String> map = new LinkedHashMap<>();
+                for (int i = 0; i < headers.size(); i++) {
+                    Cell cell = row.getCell(i);
+                    String value = (cell == null) ? null : getCellValueAsString(cell);
+                    map.put(headers.get(i), value);
+                }
+                rows.add(map);
+            }
+        }
+        return rows;
+    }
+
+    private static String getCellValueAsString(Cell cell) {
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue();
+            case NUMERIC -> DateUtil.isCellDateFormatted(cell) ?
+                cell.getDateCellValue().toString() :
+                Double.toString(cell.getNumericCellValue());
+            case BOOLEAN -> Boolean.toString(cell.getBooleanCellValue());
+            case FORMULA -> cell.getCellFormula();
+            default -> null;
+        };
+    }
+}
+
+
+---
+
+📄 OracleFormatter.java
+
+package org.example.csvtooracle;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class OracleFormatter {
+
+    public static String format(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "NULL";
+        String value = raw.trim();
+
+        // Essai : nombre
+        try {
+            String normalized = value.replace("\u202f", "").replace(" ", "").replace(",", ".");
+            Double d = Double.parseDouble(normalized);
+            return d.toString();
+        } catch (NumberFormatException ignored) { }
+
+        // Essai : date
+        String[][] formats = {
+                {"dd/MM/yyyy HH:mm:ss", "YYYY-MM-DD HH24:MI:SS"},
+                {"yyyy-MM-dd HH:mm:ss", "YYYY-MM-DD HH24:MI:SS"},
+                {"dd/MM/yyyy", "YYYY-MM-DD"},
+                {"yyyy-MM-dd", "YYYY-MM-DD"}
+        };
+
+        for (String[] fmt : formats) {
+            try {
+                Date date = new SimpleDateFormat(fmt[0]).parse(value);
+                String sqlDate = new SimpleDateFormat(fmt[0].contains("HH") ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd").format(date);
+                return "TO_DATE('" + sqlDate + "', '" + fmt[1] + "')";
+            } catch (ParseException ignored) { }
+        }
+
+        return "'" + value.replace("'", "''") + "'";
+    }
+}
+
+
+---
+
+📄 SqlGenerator.java
+
+package org.example.csvtooracle;
+
+import java.util.*;
+
+public class SqlGenerator {
+    public static List<String> generateInsertStatements(List<Map<String, String>> rows, String table) {
+        List<String> sql = new ArrayList<>();
+        if (rows.isEmpty()) return sql;
+
+        List<String> columns = new ArrayList<>(rows.get(0).keySet());
+        String columnList = String.join(", ", columns);
+
+        for (Map<String, String> row : rows) {
+            List<String> values = new ArrayList<>();
+            for (String col : columns) {
+                values.add(OracleFormatter.format(row.get(col)));
+            }
+            String line = String.format("INSERT INTO %s (%s) VALUES (%s);", table, columnList, String.join(", ", values));
+            sql.add(line);
+        }
+
+        return sql;
+    }
+}
+
+
+---
+
+✅ Compilation & exécution
+
+1. Compiler :
+
+mvn clean package
+
+2. Exécuter :
+
+java -jar target/csv-to-oracle-1.0-SNAPSHOT.jar donnees.csv MA_TABLE
+
+Un fichier donnees_MA_TABLE.sql sera généré dans le même dossier.
+
+
+---
+
+Souhaites-tu aussi une option --dry-run, ou une gestion de batch (ex: 1000 lignes par script) ?
+
