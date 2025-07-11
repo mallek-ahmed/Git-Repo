@@ -1,0 +1,33 @@
+package org.example.csvtooracle;
+
+import java.util.*;
+
+public class SqlGenerator {
+
+    public static List<String> generateInsertStatements(List<Map<String, String>> rows, String table) {
+        List<String> sql = new ArrayList<>();
+        if (rows.isEmpty()) return sql;
+
+        List<String> columns = new ArrayList<>(rows.get(0).keySet());
+        String columnList = String.join(", ", columns);
+
+        for (Map<String, String> row : rows) {
+            // 🔹 Commentaire de validation (affiche ligne brute)
+            String comment = "-- Ligne: " + columns.stream()
+                .map(col -> col + "=" + Objects.toString(row.get(col), ""))
+                .reduce((a, b) -> a + ", " + b).orElse("");
+
+            // 🔸 INSERT SQL
+            List<String> values = new ArrayList<>();
+            for (String col : columns) {
+                values.add(OracleFormatter.format(row.get(col)));
+            }
+            String insert = String.format("INSERT INTO %s (%s) VALUES (%s);", table, columnList, String.join(", ", values));
+
+            sql.add(comment);
+            sql.add(insert);
+        }
+
+        return sql;
+    }
+}
