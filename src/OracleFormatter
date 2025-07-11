@@ -1,0 +1,38 @@
+package org.example.csvtooracle;
+
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
+public class OracleFormatter {
+
+    public static String format(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "NULL";
+        String value = raw.trim();
+
+        // 1️⃣ Nombres (avec virgule, espace, négatif…)
+        try {
+            String normalized = value.replace("\u202f", "").replace(" ", "").replace(",", ".");
+            Double d = Double.parseDouble(normalized);
+            return d.toString();
+        } catch (NumberFormatException ignored) { }
+
+        // 2️⃣ Dates → forcer le format d’affichage 'dd/MM/yy HH:mm:ss'
+        String[] inputFormats = {
+                "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy", 
+                "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd",
+                "EEE MMM dd HH:mm:ss zzz yyyy"  // pour les Date.toString() Java
+        };
+
+        for (String inputFormat : inputFormats) {
+            try {
+                Date date = new SimpleDateFormat(inputFormat).parse(value);
+                String formatted = new SimpleDateFormat("dd/MM/yy HH:mm:ss").format(date);
+                return "TO_DATE('" + formatted + "', 'DD/MM/RR HH24:MI:SS')";
+            } catch (ParseException ignored) { }
+        }
+
+        // 3️⃣ Sinon → chaîne Oracle sécurisée
+        return "'" + value.replace("'", "''") + "'";
+    }
+}
