@@ -1,0 +1,102 @@
+SET SERVEROUTPUT ON SIZE UNLIMITED
+DECLARE
+  --------------------------------------------------------------------
+  -- PARAMÈTRES À ADAPTER
+  --------------------------------------------------------------------
+  v_owner   VARCHAR2(30) := USER;          -- ou 'MON_SCHEMA'
+  v_search  VARCHAR2(4000) := 'main';      -- valeur à rechercher
+  --------------------------------------------------------------------
+
+  v_is_numeric   BOOLEAN := FALSE;
+  v_search_num   NUMBER;
+
+  TYPE t_cur IS REF CURSOR;
+
+  v_sql   CLOB;
+  c       t_cur;
+
+  -- tampon pour récupérer les résultats de chaque SELECT dynamique
+  v_tab   VARCHAR2(261);  -- owner.table_name (jusqu'à 30+1+30, marge)
+  v_col   VARCHAR2(128);
+  v_rid   ROWID;
+  v_val   VARCHAR2(4000);
+
+  -- utilitaires
+  FUNCTION esc(p IN VARCHAR2) RETURN VARCHAR2 IS
+  BEGIN
+    RETURN REPLACE(p, '''', '''''');
+  END;
+BEGIN
+  -- Détecter si la valeur est numérique
+  BEGIN
+    v_search_num := TO_NUMBER(v_search);
+    v_is_numeric := TRUE;
+  EXCEPTION
+    WHEN OTHERS THEN
+      v_is_numeric := FALSE;
+  END;
+
+  DBMS_OUTPUT.PUT_LINE('--- Recherche dans le schéma: '||v_owner||'  valeur="'||v_search||'" ---');
+
+  FOR col IN (
+    SELECT owner, table_name, column_name, data_type
+    FROM   all_tab_columns
+    WHERE  owner = v_owner
+    AND    data_type IN (
+             'CHAR','NCHAR','VARCHAR2','NVARCHAR2','CLOB','NCLOB',
+             'NUMBER','DATE',
+             'TIMESTAMP','TIMESTAMP WITH TIME ZONE','TIMESTAMP WITH LOCAL TIME ZONE'
+           )
+    ORDER  BY table_name, column_name
+  ) LOOP
+    -- Construire le SELECT pour cette colonne
+    v_sql :=
+      'SELECT '''||col.owner||'.'||col.table_name||''' AS tab, '||
+             ''''||col.column_name||''' AS col, '||
+             'ROWID AS rid, '||
+             'CASE '||
+             '  WHEN '''||col.data_type||''' IN (''DATE'') THEN TO_CHAR('||col.column_name||',''YYYY-MM-DD HH24:MI:SS'') '||
+             '  WHEN '''||col.data_type||''' LIKE ''TIMESTAMP%'' THEN TO_CHAR('||col.column_name||',''YYYY-MM-DD HH24:MI:SS.FF'') '||
+             '  ELSE TO_CHAR('||col.column_name||') '||
+             'END AS val '||
+      'FROM '||col.owner||'.'||col.table_name||' '||
+      'WHERE ';
+
+    IF col.data_type IN ('CHAR','NCHAR','VARCHAR2','NVARCHAR2','CLOB','NCLOB') THEN
+      -- recherche "contient" dans le texte (insensible à la casse via UPPER)
+      v_sql := v_sql || 'UPPER('||col.column_name||') LIKE ''%'||UPPER(esc(v_search))||'%''';
+    ELSIF col.data_type = 'NUMBER' THEN
+      -- on ne tente que si la valeur est numérique
+      IF v_is_numeric THEN
+        v_sql := v_sql || col.column_name || ' = ' || TO_CHAR(v_search_num);
+      ELSE
+        CONTINUE; -- ignorer cette colonne NUMBER si la valeur n'est pas numérique
+      END IF;
+    ELSIF col.data_type = 'DATE' THEN
+      v_sql := v_sql || 'TO_CHAR('||col.column_name||',''YYYY-MM-DD HH24:MI:SS'') LIKE ''%'||esc(v_search)||'%''';
+    ELSIF col.data_type LIKE 'TIMESTAMP%' THEN
+      v_sql := v_sql || 'TO_CHAR('||col.column_name||',''YYYY-MM-DD HH24:MI:SS.FF'') LIKE ''%'||esc(v_search)||'%''';
+    ELSE
+      CONTINUE;
+    END IF;
+
+    -- Exécuter et afficher les résultats
+    BEGIN
+      OPEN c FOR v_sql;
+      LOOP
+        FETCH c INTO v_tab, v_col, v_rid, v_val;
+        EXIT WHEN c%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(rpad(v_tab||'.'||v_col, 80) || ' | ' || v_rid || ' | ' || SUBSTR(v_val,1,200));
+      END LOOP;
+      CLOSE c;
+    EXCEPTION
+      WHEN OTHERS THEN
+        -- ignorer les erreurs ponctuelles (synonymes cassés, droits, colonnes virtuelles, etc.)
+        IF c%ISOPEN THEN CLOSE c; END IF;
+        NULL;
+    END;
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE('--- Fin de recherche ---');
+END;
+/
