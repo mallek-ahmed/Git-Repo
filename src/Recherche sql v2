@@ -1,0 +1,190 @@
+-- Afficher les résultats dans la console
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET PAGESIZE 0 TRIMSPOOL ON
+
+DECLARE
+  ---------------------------------------------------------------------------
+  -- >>> Paramètres à ajuster <<<
+  ---------------------------------------------------------------------------
+  v_search_raw         VARCHAR2(4000) := 'main'; -- valeur à rechercher (texte ou nombre)
+  v_max_rows_per_hit   PLS_INTEGER     := 5;     -- nb max de lignes à afficher par colonne
+  ---------------------------------------------------------------------------
+
+  -- Détection automatique nombre/texte
+  v_is_number  BOOLEAN := FALSE;
+  v_num_value  NUMBER;
+
+  -- Travail
+  v_count_sql  CLOB;
+  v_disp_sql   CLOB;
+  v_cnt        NUMBER;
+
+  -- Curseur et variables d'affichage
+  rc    SYS_REFCURSOR;
+  l_rid ROWID;
+  l_val VARCHAR2(4000);
+
+  -- Utilitaires
+  FUNCTION is_number(p_str VARCHAR2) RETURN BOOLEAN IS
+    v NUMBER;
+  BEGIN
+    v := TO_NUMBER(TRIM(p_str));
+    RETURN TRUE;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RETURN FALSE;
+  END is_number;
+
+  PROCEDURE fetch_and_print(p_sql CLOB, p_bind_num BOOLEAN) IS
+  BEGIN
+    IF p_bind_num THEN
+      OPEN rc FOR p_sql USING v_num_value;
+    ELSE
+      OPEN rc FOR p_sql USING v_search_raw;
+    END IF;
+
+    LOOP
+      FETCH rc INTO l_rid, l_val;
+      EXIT WHEN rc%NOTFOUND;
+      DBMS_OUTPUT.PUT_LINE('    rowid='||l_rid||'  val='||SUBSTR(l_val, 1, 200));
+    END LOOP;
+    CLOSE rc;
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- ne bloque pas le scan si une table/col pose problème
+      IF rc%ISOPEN THEN
+        CLOSE rc;
+      END IF;
+      NULL;
+  END fetch_and_print;
+
+BEGIN
+  -- Détecter si la valeur est numérique
+  v_is_number := is_number(v_search_raw);
+  IF v_is_number THEN
+    v_num_value := TO_NUMBER(TRIM(v_search_raw));
+  END IF;
+
+  DBMS_OUTPUT.PUT_LINE('=== Recherche "'||v_search_raw||'" dans le schéma '||USER||' ===');
+  DBMS_OUTPUT.PUT_LINE('Interprétation: '||CASE WHEN v_is_number THEN 'NUMÉRIQUE' ELSE 'TEXTE' END);
+
+  FOR c IN (
+    SELECT t.table_name,
+           col.column_name,
+           col.data_type
+    FROM   user_tables t
+    JOIN   user_tab_columns col
+           ON col.table_name = t.table_name
+    WHERE  col.data_type NOT IN ('BLOB','RAW','LONG RAW','BFILE') -- on ignore les binaires
+    ORDER  BY t.table_name, col.column_id
+  )
+  LOOP
+    BEGIN
+      v_count_sql := NULL;
+      v_disp_sql  := NULL;
+
+      -- TEXTE : CHAR / VARCHAR2 / NCHAR / NVARCHAR2
+      IF c.data_type IN ('CHAR','VARCHAR2','NCHAR','NVARCHAR2') THEN
+        v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                       'WHERE UPPER("'||c.column_name||'") LIKE UPPER(''%''||:v||''%'')';
+        v_disp_sql  := 'SELECT ROWID rid, SUBSTR("'||c.column_name||'",1,4000) val '||
+                       'FROM "'||c.table_name||'" '||
+                       'WHERE UPPER("'||c.column_name||'") LIKE UPPER(''%''||:v||''%'') '||
+                       'AND ROWNUM <= '||v_max_rows_per_hit;
+
+        EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+        IF v_cnt > 0 THEN
+          DBMS_OUTPUT.PUT_LINE('> '||RPAD(c.table_name||'.'||c.column_name,60)||
+                               ' ['||c.data_type||'] => '||v_cnt||' ligne(s)');
+          fetch_and_print(v_disp_sql, /*bind_num*/ FALSE);
+        END IF;
+
+      -- CLOB / NCLOB
+      ELSIF c.data_type IN ('CLOB','NCLOB') THEN
+        v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                       'WHERE DBMS_LOB.INSTR(UPPER("'||c.column_name||'"), UPPER(:v)) > 0';
+        v_disp_sql  := 'SELECT ROWID rid, DBMS_LOB.SUBSTR("'||c.column_name||'", 200, 1) val '||
+                       'FROM "'||c.table_name||'" '||
+                       'WHERE DBMS_LOB.INSTR(UPPER("'||c.column_name||'"), UPPER(:v)) > 0 '||
+                       'AND ROWNUM <= '||v_max_rows_per_hit;
+
+        EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+        IF v_cnt > 0 THEN
+          DBMS_OUTPUT.PUT_LINE('> '||RPAD(c.table_name||'.'||c.column_name,60)||
+                               ' ['||c.data_type||'] => '||v_cnt||' ligne(s)');
+          fetch_and_print(v_disp_sql, /*bind_num*/ FALSE);
+        END IF;
+
+      -- NUMÉRIQUES
+      ELSIF c.data_type IN ('NUMBER','FLOAT','BINARY_FLOAT','BINARY_DOUBLE','INTEGER','DECIMAL') THEN
+        IF v_is_number THEN
+          -- égalité numérique stricte
+          v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                         'WHERE "'||c.column_name||'" = :n';
+          v_disp_sql  := 'SELECT ROWID rid, TO_CHAR("'||c.column_name||'") val '||
+                         'FROM "'||c.table_name||'" '||
+                         'WHERE "'||c.column_name||'" = :n '||
+                         'AND ROWNUM <= '||v_max_rows_per_hit;
+
+          EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_num_value;
+
+          IF v_cnt > 0 THEN
+            DBMS_OUTPUT.PUT_LINE('> '||RPAD(c.table_name||'.'||c.column_name,60)||
+                                 ' ['||c.data_type||'] => '||v_cnt||' ligne(s)');
+            fetch_and_print(v_disp_sql, /*bind_num*/ TRUE);
+          END IF;
+        ELSE
+          -- recherche textuelle sur la représentation
+          v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                         'WHERE TO_CHAR("'||c.column_name||'") LIKE ''%''||:v||''%''';
+          v_disp_sql  := 'SELECT ROWID rid, TO_CHAR("'||c.column_name||'") val '||
+                         'FROM "'||c.table_name||'" '||
+                         'WHERE TO_CHAR("'||c.column_name||'") LIKE ''%''||:v||''%'' '||
+                         'AND ROWNUM <= '||v_max_rows_per_hit;
+
+          EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+          IF v_cnt > 0 THEN
+            DBMS_OUTPUT.PUTLINE('> '||RPAD(c.table_name||'.'||c.column_name,60)||
+                                ' ['||c.data_type||'] => '||v_cnt||' ligne(s)');
+            fetch_and_print(v_disp_sql, /*bind_num*/ FALSE);
+          END IF;
+        END IF;
+
+      -- DATES / TIMESTAMPS (y compris WITH [LOCAL] TIME ZONE)
+      ELSIF c.data_type = 'DATE' OR c.data_type LIKE 'TIMESTAMP%' THEN
+        v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                       'WHERE TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') '||
+                       'LIKE ''%''||:v||''%''';
+        v_disp_sql  := 'SELECT ROWID rid, '||
+                       'TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') val '||
+                       'FROM "'||c.table_name||'" '||
+                       'WHERE TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') '||
+                       'LIKE ''%''||:v||''%'' '||
+                       'AND ROWNUM <= '||v_max_rows_per_hit;
+
+        EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+        IF v_cnt > 0 THEN
+          DBMS_OUTPUT.PUT_LINE('> '||RPAD(c.table_name||'.'||c.column_name,60)||
+                               ' ['||c.data_type||'] => '||v_cnt||' ligne(s)');
+          fetch_and_print(v_disp_sql, /*bind_num*/ FALSE);
+        END IF;
+
+      ELSE
+        -- Types exotiques ignorés
+        NULL;
+      END IF;
+
+    EXCEPTION
+      WHEN OTHERS THEN
+        -- ignorer l'erreur sur cette colonne et continuer
+        NULL;
+    END;
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE('=== Recherche terminée ===');
+END;
+/
