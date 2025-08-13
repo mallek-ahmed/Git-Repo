@@ -1,0 +1,132 @@
+-- Active l'affichage
+SET SERVEROUTPUT ON SIZE UNLIMITED
+SET PAGESIZE 0 TRIMSPOOL ON
+
+DECLARE
+  -- >>> Paramètres à ajuster <<< 
+  v_search_raw   VARCHAR2(4000) := 'main';  -- la valeur recherchée (texte ou nombre)
+  v_max_rows_per_hit PLS_INTEGER := 5;      -- nb max de lignes à afficher par colonne
+
+  -- Variables internes
+  v_is_number  BOOLEAN := FALSE;
+  v_num_value  NUMBER;
+  v_sql        CLOB;
+  v_count_sql  CLOB;
+  v_cnt        NUMBER;
+  v_disp_sql   CLOB;
+
+  -- Utilitaires
+  FUNCTION is_number(p_str VARCHAR2) RETURN BOOLEAN IS
+    v NUMBER;
+  BEGIN
+    v := TO_NUMBER(TRIM(p_str));
+    RETURN TRUE;
+  EXCEPTION
+    WHEN OTHERS THEN
+      RETURN FALSE;
+  END;
+BEGIN
+  -- Détection automatique si la valeur est numérique
+  v_is_number := is_number(v_search_raw);
+  IF v_is_number THEN
+    v_num_value := TO_NUMBER(TRIM(v_search_raw));
+  END IF;
+
+  DBMS_OUTPUT.PUT_LINE('=== Recherche "'||v_search_raw||'" dans le schéma courant ('||USER||') ===');
+  DBMS_OUTPUT.PUT_LINE('Interprétation: '||CASE WHEN v_is_number THEN 'NUMÉRIQUE' ELSE 'TEXTE' END);
+
+  FOR c IN (
+    SELECT t.table_name, c.column_name, c.data_type
+    FROM   user_tables t
+    JOIN   user_tab_columns c ON c.table_name = t.table_name
+    WHERE  c.data_type NOT IN ('BLOB','RAW','LONG RAW','BFILE') -- types non textuels non gérables en LIKE
+    ORDER  BY t.table_name, c.column_id
+  )
+  LOOP
+    -- Construire la clause WHERE selon le type
+    -- Texte (CHAR, VARCHAR2, NCHAR, NVARCHAR2)
+    IF c.data_type IN ('CHAR','VARCHAR2','NCHAR','NVARCHAR2') THEN
+      v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" WHERE UPPER("'||c.column_name||'") LIKE UPPER(''%''||:v||''%'')';
+      v_disp_sql  := 'SELECT ROWID AS rid, "'||c.column_name||'" AS val '||
+                     'FROM "'||c.table_name||'" '||
+                     'WHERE UPPER("'||c.column_name||'") LIKE UPPER(''%''||:v||''%'') '||
+                     'AND ROWNUM <= '||v_max_rows_per_hit;
+
+      EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+    -- CLOB / NCLOB (recherche via DBMS_LOB.INSTR)
+    ELSIF c.data_type IN ('CLOB','NCLOB') THEN
+      v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                     'WHERE DBMS_LOB.INSTR(UPPER("'||c.column_name||'"), UPPER(:v)) > 0';
+      v_disp_sql  := 'SELECT ROWID AS rid, DBMS_LOB.SUBSTR("'||c.column_name||'", 200, 1) AS val '||
+                     'FROM "'||c.table_name||'" '||
+                     'WHERE DBMS_LOB.INSTR(UPPER("'||c.column_name||'"), UPPER(:v)) > 0 '||
+                     'AND ROWNUM <= '||v_max_rows_per_hit;
+
+      EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+    -- Numériques
+    ELSIF c.data_type IN ('NUMBER','FLOAT','BINARY_FLOAT','BINARY_DOUBLE','INTEGER','DECIMAL') THEN
+      IF v_is_number THEN
+        -- Égalité numérique stricte
+        v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" WHERE "'||c.column_name||'" = :n';
+        v_disp_sql  := 'SELECT ROWID AS rid, "'||c.column_name||'" AS val '||
+                       'FROM "'||c.table_name||'" '||
+                       'WHERE "'||c.column_name||'" = :n '||
+                       'AND ROWNUM <= '||v_max_rows_per_hit;
+
+        EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_num_value;
+      ELSE
+        -- Valeur non numérique : comparaison textuelle sur représentation
+        v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                       'WHERE TO_CHAR("'||c.column_name||'") LIKE ''%''||:v||''%''';
+        v_disp_sql  := 'SELECT ROWID AS rid, "'||c.column_name||'" AS val '||
+                       'FROM "'||c.table_name||'" '||
+                       'WHERE TO_CHAR("'||c.column_name||'") LIKE ''%''||:v||''%'' '||
+                       'AND ROWNUM <= '||v_max_rows_per_hit;
+
+        EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+      END IF;
+
+    -- Dates / timestamps : on autorise aussi la recherche textuelle (format NLS courant)
+    ELSIF c.data_type LIKE 'DATE%' OR c.data_type LIKE 'TIMESTAMP%' THEN
+      v_count_sql := 'SELECT COUNT(*) FROM "'||c.table_name||'" '||
+                     'WHERE TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') LIKE ''%''||:v||''%''';
+      v_disp_sql  := 'SELECT ROWID AS rid, TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') AS val '||
+                     'FROM "'||c.table_name||'" '||
+                     'WHERE TO_CHAR("'||c.column_name||'", ''YYYY-MM-DD HH24:MI:SS'') LIKE ''%''||:v||''%'' '||
+                     'AND ROWNUM <= '||v_max_rows_per_hit;
+
+      EXECUTE IMMEDIATE v_count_sql INTO v_cnt USING v_search_raw;
+
+    ELSE
+      -- Types exotiques : on saute
+      CONTINUE;
+    END IF;
+
+    -- Affichage si des matches
+    IF v_cnt > 0 THEN
+      DBMS_OUTPUT.PUT_LINE('> '||RPAD(c.table_name||'.'||c.column_name, 60)||' ['||c.data_type||']  => '||v_cnt||' ligne(s)');
+      -- Montrer quelques valeurs + rowid pour retrouver la ligne
+      FOR r IN (EXECUTE IMMEDIATE v_disp_sql USING v_search_raw) -- quand on passe :n on rebind juste après
+      LOOP
+        DBMS_OUTPUT.PUT_LINE('    rowid='||r.rid||'  val='||SUBSTR(r.val,1,200));
+      END LOOP;
+      -- Si la clause utilisait :n (numérique), ré-exécuter l’affichage avec bind numérique
+      IF c.data_type IN ('NUMBER','FLOAT','BINARY_FLOAT','BINARY_DOUBLE','INTEGER','DECIMAL') AND v_is_number THEN
+        FOR r IN (EXECUTE IMMEDIATE v_disp_sql USING v_num_value)
+        LOOP
+          DBMS_OUTPUT.PUT_LINE('    rowid='||r.rid||'  val='||r.val);
+        END LOOP;
+      END IF;
+    END IF;
+
+  EXCEPTION
+    WHEN OTHERS THEN
+      -- On ignore les erreurs ponctuelles (droits, colonnes virtuelles, etc.)
+      NULL;
+  END LOOP;
+
+  DBMS_OUTPUT.PUT_LINE('=== Recherche terminée ===');
+END;
+/
