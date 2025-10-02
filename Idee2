@@ -1,0 +1,16 @@
+Architecture Trigger Oracle → Python
+
+Trigger PL/SQL sur les tables : capte INSERT/UPDATE/DELETE.
+
+Notification :
+
+Option légère : DBMS_ALERT → simple, mais perte possible en cas de coupure.
+
+Option robuste : Advanced Queuing (AQ) → messages persistés, reprise après incident.
+
+
+Python listener : service externe qui reçoit l’événement, applique la logique métier, et trace l’exécution.
+
+Avantages : réactivité, intégration rapide.
+
+Inconvénients : risque de surcharge si triggers trop nombreux (ALERT), complexité de mise en œuvre si AQ.
