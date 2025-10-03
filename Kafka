@@ -1,0 +1,252 @@
+Voici un POC minimal “de A à Z” (Java 21, Spring Boot 3) pour publier un message dans Kafka.
+Je pars sur un Kafka “léger” via Redpanda + Redpanda Console (web UI) pour voir les messages/offsets. Pas besoin de Zookeeper.
+
+
+---
+
+1) Lancer Kafka local (Docker)
+
+Crée docker-compose.yml à la racine :
+
+version: "3.8"
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v23.3.10
+    command:
+      - redpanda start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --enable-sasl=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://localhost:9092
+    ports:
+      - "9092:9092"   # Kafka API
+      - "9644:9644"   # Admin
+  console:
+    image: redpandadata/console:v2.5.1
+    depends_on:
+      - redpanda
+    environment:
+      - KAFKA_BROKERS=redpanda:9092
+    ports:
+      - "8080:8080"
+
+Démarre :
+
+docker compose up -d
+# UI: http://localhost:8080
+
+
+---
+
+2) Dépendances Spring Boot
+
+Dans ton projet Spring Boot 3 (Maven), ajoute spring-kafka et web.
+(Garde la version du parent Spring Boot déjà utilisée dans ton projet. Je ne force aucune version ici pour éviter l’incompatibilité.)
+
+<dependencies>
+  <dependency>
+    <groupId>org.springframework.kafka</groupId>
+    <artifactId>spring-kafka</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+  </dependency>
+  <dependency>
+    <groupId>com.fasterxml.jackson.core</groupId>
+    <artifactId>jackson-databind</artifactId>
+  </dependency>
+</dependencies>
+
+
+---
+
+3) Configuration application.yml
+
+src/main/resources/application.yml
+
+server:
+  port: 8085
+
+app:
+  kafka:
+    topic: demo-events
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # pour inclure le type dans l’en-tête (pratique côté consumer JSON)
+        spring.json.add.type.headers: true
+    # (facultatif) créer automatiquement le topic si absent côté broker
+    admin:
+      fail-fast: true
+
+
+---
+
+4) Création du topic côté Spring (bean)
+
+src/main/java/com/example/kafka/KafkaTopicsConfig.java
+
+package com.example.kafka;
+
+import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class KafkaTopicsConfig {
+
+    @Bean
+    public NewTopic demoTopic(@Value("${app.kafka.topic}") String topic) {
+        // 1 partition / réplication 1 pour un POC local
+        return new NewTopic(topic, 1, (short) 1);
+    }
+}
+
+
+---
+
+5) Le payload (DTO)
+
+src/main/java/com/example/kafka/model/DemoEvent.java
+
+package com.example.kafka.model;
+
+public record DemoEvent(
+        String id,
+        String type,
+        String payload
+) {}
+
+
+---
+
+6) Service producteur
+
+src/main/java/com/example/kafka/service/KafkaProducerService.java
+
+package com.example.kafka.service;
+
+import com.example.kafka.model.DemoEvent;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.support.MessageBuilder;
+import org.springframework.stereotype.Service;
+
+@Service
+public class KafkaProducerService {
+
+    private final KafkaTemplate<String, DemoEvent> template;
+    private final String topic;
+
+    public KafkaProducerService(
+            KafkaTemplate<String, DemoEvent> template,
+            @Value("${app.kafka.topic}") String topic
+    ) {
+        this.template = template;
+        this.topic = topic;
+    }
+
+    public void send(String key, DemoEvent event) {
+        var msg = MessageBuilder.withPayload(event)
+                .setHeader(KafkaHeaders.TOPIC, topic)
+                .setHeader(KafkaHeaders.MESSAGE_KEY, key)
+                .build();
+        template.send(msg);
+        // Optionnel: attendre l’ack pour remonter les erreurs
+        // template.send(msg).get(5, TimeUnit.SECONDS);
+    }
+}
+
+
+---
+
+7) Contrôleur REST pour publier
+
+src/main/java/com/example/kafka/api/PublishController.java
+
+package com.example.kafka.api;
+
+import com.example.kafka.model.DemoEvent;
+import com.example.kafka.service.KafkaProducerService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/events")
+public class PublishController {
+
+    private final KafkaProducerService producer;
+
+    public PublishController(KafkaProducerService producer) {
+        this.producer = producer;
+    }
+
+    @PostMapping
+    public ResponseEntity<?> publish(@RequestBody DemoEvent event,
+                                     @RequestParam(required = false) String key) {
+        String k = (key != null && !key.isBlank()) ? key : UUID.randomUUID().toString();
+        producer.send(k, event);
+        return ResponseEntity.accepted().body("sent with key=" + k);
+    }
+}
+
+
+---
+
+8) Démarrer l’appli et tester
+
+Lance l’app :
+
+./mvnw spring-boot:run
+# ou: mvn spring-boot:run
+
+Envoie un message :
+
+curl -X POST "http://localhost:8085/api/events?key=test-1" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"42","type":"USER_CREATED","payload":"hello kafka"}'
+
+
+---
+
+9) Voir le message et l’offset
+
+Ouvre Redpanda Console : http://localhost:8080
+
+Va sur Topics → demo-events → Messages
+Tu verras la clé, la partition, l’offset, le payload JSON, les headers.
+
+
+
+---
+
+Notes rapides / pièges évités
+
+Serializers : on publie DemoEvent en JSON via JsonSerializer → pas besoin d’écrire un ProducerFactory manuel.
+
+Topic : créé par le bean NewTopic au démarrage (1 partition pour le POC).
+
+Bootstrap : localhost:9092 (mappé vers Redpanda).
+
+UI offsets : Redpanda Console affiche bien offsets/partitions/headers.
+
+
+Si tu veux la même chose dans Kubernetes/Tanzu, on peut transposer (Strimzi, Bitnami Kafka, ou Redpanda operator) — mais pour un POC local de publication simple, ce setup est le plus court et fiable.
+
+Tu veux que je te fournisse aussi un consumer minimal pour vérifier côté Spring (en plus de la console) ?
+
