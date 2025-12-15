@@ -1,0 +1,49 @@
+
+
+# GitHub Copilot – Instructions de projet
+
+## Objectif
+
+Migrer **progressivement** le projet vers une **architecture hexagonale**.
+Aucune refonte globale. Changements incrémentaux uniquement.
+
+---
+
+## Règles strictes
+
+Copilot DOIT :
+
+* Respecter l’existant
+* S’assurer qu’à chaque changement / étape, le projet **compile et démarre correctement**
+* Idéalement, s’assurer que le projet est **testable fonctionnellement** (pas de casse du flux existant)
+* Éviter toute **régression fonctionnelle**
+* Suivre l’architecture en place et la faire évoluer **pas à pas**
+
+Copilot NE DOIT PAS :
+
+* Créer des fichiers README sans demande explicite
+* Modifier ou ajouter de la logique métier sans demande explicite
+* Changer le comportement fonctionnel existant
+* Inventer des classes, services, tables ou règles
+
+---
+
+## Migration hexagonale (principes)
+
+* Migration **incrémentale** uniquement
+* Isolation progressive de la logique métier
+
+---
+
+## Code & commentaires
+
+* Code simple, lisible, compatible avec les versions utilisées
+* **Pas de commentaires excessifs**
+* Commenter uniquement si nécessaire
+
+---
+
+## Règle finale
+
+En cas de doute : **demander avant d’agir**.
+
