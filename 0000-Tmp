@@ -1,0 +1,50 @@
+Contexte :
+Le workspace contient déjà deux modules : 
+- helmcharts/ (charts internes)
+- helmreleases/ (HelmRelease FluxCD pour staging)
+
+Objectif :
+Ajouter une base Oracle de test nommée "amc_bdd_test" dans le namespace staging.
+
+Contraintes :
+- Usage DEV / debug uniquement
+- Image : gvenzl/oracle-free
+- 1 replica (StatefulSet)
+- PVC obligatoire (volumeClaimTemplates)
+- Service ClusterIP exposé sur 1521
+- Accès interne pour les pods du namespace staging
+- Accès externe via kubectl port-forward (pas de NodePort ni Ingress)
+- Secrets déjà gérés par Vault (utiliser un Secret existant : amc-bdd-test-secret)
+- Ne pas modifier les charts existants
+
+À faire :
+
+1) Créer un nouveau chart :
+helmcharts/bdd_test/amc_bdd_test/
+
+Contenu minimal :
+- Chart.yaml
+- values.yaml
+- templates/statefulset.yaml
+- templates/service.yaml
+
+2) Le StatefulSet doit :
+- utiliser gvenzl/oracle-free
+- définir ORACLE_PASSWORD, APP_USER, APP_USER_PASSWORD via secretKeyRef
+- monter le volume sur /opt/oracle/oradata
+- inclure readinessProbe et livenessProbe TCP sur 1521
+
+3) Ajouter un HelmRelease :
+helmreleases/staging/amc_bdd_test.yaml
+
+Le HelmRelease doit :
+- référencer le chart local
+- déployer dans namespace staging
+- permettre override du storageClassName
+- taille PVC par défaut : 30Gi
+
+Ne pas ajouter de Job d'import pour l’instant.
+Ne pas ajouter de NetworkPolicy.
+Ne pas ajouter de NodePort.
+
+Générer uniquement les fichiers nécessaires, alignés sur la structure existante du projet.
